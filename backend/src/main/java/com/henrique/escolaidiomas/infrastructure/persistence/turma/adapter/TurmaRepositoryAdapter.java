@@ -36,4 +36,10 @@ public class TurmaRepositoryAdapter implements TurmaRepository {
     public List<Turma> listar() {
         return springDataTurmaRepository.findAll().stream().map(turmaMapper::toDomain).toList();
     }
+
+    @Override
+    public List<Turma> listarPorProfessor(UUID professorId) {
+        return springDataTurmaRepository.findByProfessorId(professorId).stream()
+                .map(turmaMapper::toDomain).toList();
+    }
 }

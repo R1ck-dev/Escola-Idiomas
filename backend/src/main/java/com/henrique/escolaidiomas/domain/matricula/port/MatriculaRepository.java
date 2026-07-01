@@ -13,6 +13,12 @@ public interface MatriculaRepository {
     List<Matricula> listar();
     List<Matricula> listarPorStatus(StatusMatricula status);
 
+    /** Matriculas de uma turma num dado status (ex.: ATIVA — lista de chamada/US-17). */
+    List<Matricula> listarPorTurmaEStatus(UUID turmaId, StatusMatricula status);
+
+    /** Todas as matriculas de um aluno (area do aluno — US-20/21/22). */
+    List<Matricula> listarPorAluno(UUID alunoId);
+
     /** Quantas matriculas ATIVAS a turma tem (para o limite de lotacao — RN-07). */
     long contarAtivasPorTurma(UUID turmaId);
 

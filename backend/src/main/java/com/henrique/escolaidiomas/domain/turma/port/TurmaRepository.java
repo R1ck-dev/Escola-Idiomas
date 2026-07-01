@@ -11,4 +11,7 @@ public interface TurmaRepository {
     Turma salvar(Turma turma);
     Optional<Turma> buscarPorId(UUID id);
     List<Turma> listar();
+
+    /** Turmas de um professor responsavel (US-17). */
+    List<Turma> listarPorProfessor(UUID professorId);
 }

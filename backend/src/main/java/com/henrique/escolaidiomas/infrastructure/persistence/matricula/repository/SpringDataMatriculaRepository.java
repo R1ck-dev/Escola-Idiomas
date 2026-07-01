@@ -18,4 +18,8 @@ public interface SpringDataMatriculaRepository extends JpaRepository<MatriculaJp
     boolean existsByAlunoIdAndTurmaIdAndStatusIn(UUID alunoId, UUID turmaId, Collection<StatusMatricula> status);
 
     List<MatriculaJpaEntity> findByStatus(StatusMatricula status);
+
+    List<MatriculaJpaEntity> findByTurmaIdAndStatus(UUID turmaId, StatusMatricula status);
+
+    List<MatriculaJpaEntity> findByAlunoId(UUID alunoId);
 }

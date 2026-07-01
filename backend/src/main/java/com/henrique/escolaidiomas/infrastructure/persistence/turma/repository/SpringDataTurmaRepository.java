@@ -1,5 +1,6 @@
 package com.henrique.escolaidiomas.infrastructure.persistence.turma.repository;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,4 +10,5 @@ import com.henrique.escolaidiomas.infrastructure.persistence.turma.entity.TurmaJ
 
 @Repository
 public interface SpringDataTurmaRepository extends JpaRepository<TurmaJpaEntity, UUID> {
+    List<TurmaJpaEntity> findByProfessorId(UUID professorId);
 }

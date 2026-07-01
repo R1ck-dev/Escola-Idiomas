@@ -51,4 +51,14 @@ public class MatriculaRepositoryAdapter implements MatriculaRepository {
         return jpaRepository.existsByAlunoIdAndTurmaIdAndStatusIn(alunoId, turmaId,
                 List.of(StatusMatricula.ATIVA, StatusMatricula.AGUARDANDO_APROVACAO));
     }
+
+    @Override
+    public List<Matricula> listarPorTurmaEStatus(UUID turmaId, StatusMatricula status) {
+        return jpaRepository.findByTurmaIdAndStatus(turmaId, status).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Matricula> listarPorAluno(UUID alunoId) {
+        return jpaRepository.findByAlunoId(alunoId).stream().map(mapper::toDomain).toList();
+    }
 }
