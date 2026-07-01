@@ -19,6 +19,7 @@ public class MensalidadeMapper {
         entity.setStatus(m.getStatus());
         entity.setDataPagamento(m.getDataPagamento());
         entity.setProrata(m.isProrata());
+        entity.setAvisoAtrasoEnviado(m.isAvisoAtrasoEnviado());
         return entity;
     }
 
@@ -32,6 +33,7 @@ public class MensalidadeMapper {
                 entity.getVencimento(),
                 entity.getStatus(),
                 entity.getDataPagamento(),
-                entity.isProrata());
+                entity.isProrata(),
+                entity.isAvisoAtrasoEnviado());
     }
 }

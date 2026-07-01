@@ -48,4 +48,7 @@ public class MensalidadeJpaEntity {
 
     @Column(name = "is_prorata", nullable = false)
     private boolean prorata;
+
+    @Column(name = "aviso_atraso_enviado", nullable = false)
+    private boolean avisoAtrasoEnviado;
 }

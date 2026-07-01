@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import com.henrique.escolaidiomas.domain.financeiro.enums.StatusMensalidade;
 import com.henrique.escolaidiomas.domain.financeiro.model.Mensalidade;
 import com.henrique.escolaidiomas.domain.financeiro.port.MensalidadeRepository;
 import com.henrique.escolaidiomas.infrastructure.persistence.financeiro.mapper.MensalidadeMapper;
@@ -43,5 +44,10 @@ public class MensalidadeRepositoryAdapter implements MensalidadeRepository {
     @Override
     public boolean existePorMatriculaECompetencia(UUID matriculaId, String competencia) {
         return jpaRepository.existsByMatriculaIdAndCompetencia(matriculaId, competencia);
+    }
+
+    @Override
+    public List<Mensalidade> listarEmAberto() {
+        return jpaRepository.findByStatus(StatusMensalidade.ABERTA).stream().map(mapper::toDomain).toList();
     }
 }

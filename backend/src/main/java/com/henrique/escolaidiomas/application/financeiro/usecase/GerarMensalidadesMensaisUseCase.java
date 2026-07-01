@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.henrique.escolaidiomas.application.financeiro.service.NotificarCobrancaService;
 import com.henrique.escolaidiomas.domain.financeiro.model.Mensalidade;
 import com.henrique.escolaidiomas.domain.financeiro.port.MensalidadeRepository;
 import com.henrique.escolaidiomas.domain.matricula.enums.StatusMatricula;
@@ -28,6 +29,7 @@ public class GerarMensalidadesMensaisUseCase {
     private final MatriculaRepository matriculaRepository;
     private final TurmaRepository turmaRepository;
     private final MensalidadeRepository mensalidadeRepository;
+    private final NotificarCobrancaService notificarCobrancaService;
 
     @Transactional
     public int execute(int ano, int mes) {
@@ -50,8 +52,9 @@ public class GerarMensalidadesMensaisUseCase {
             if (turma == null) {
                 continue;
             }
-            mensalidadeRepository.salvar(
+            Mensalidade nova = mensalidadeRepository.salvar(
                     Mensalidade.mensal(matricula.getId(), turma.getValorMensalidade(), ano, mes));
+            notificarCobrancaService.notificarNovaMensalidade(nova); // RN-41
             geradas++;
         }
         return geradas;

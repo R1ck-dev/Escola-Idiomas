@@ -25,10 +25,12 @@ public class Mensalidade {
     private StatusMensalidade status;
     private LocalDate dataPagamento;
     private boolean prorata;
+    private boolean avisoAtrasoEnviado; // RN-41: garante que o aviso de atraso sai uma unica vez
 
     /** Construtor de reconstituicao. */
     public Mensalidade(UUID id, UUID matriculaId, String competencia, BigDecimal valorBase, int percentual,
-            LocalDate vencimento, StatusMensalidade status, LocalDate dataPagamento, boolean prorata) {
+            LocalDate vencimento, StatusMensalidade status, LocalDate dataPagamento, boolean prorata,
+            boolean avisoAtrasoEnviado) {
         this.id = id;
         this.matriculaId = matriculaId;
         this.competencia = competencia;
@@ -38,6 +40,7 @@ public class Mensalidade {
         this.status = status;
         this.dataPagamento = dataPagamento;
         this.prorata = prorata;
+        this.avisoAtrasoEnviado = avisoAtrasoEnviado;
     }
 
     /**
@@ -48,7 +51,7 @@ public class Mensalidade {
         int perc = percentualProRata(dataMatricula.getDayOfMonth());
         String competencia = String.format("%d-%02d", dataMatricula.getYear(), dataMatricula.getMonthValue());
         return new Mensalidade(UUID.randomUUID(), matriculaId, competencia, valorBase, perc,
-                dataMatricula, StatusMensalidade.ABERTA, null, true);
+                dataMatricula, StatusMensalidade.ABERTA, null, true, false);
     }
 
     /** RN-38: 1a semana = dias 1-7 (100%), 2a = 8-15 (75%), 3a = 16-23 (50%), 4a = 24+ (25%). */
@@ -70,7 +73,7 @@ public class Mensalidade {
         String competencia = String.format("%d-%02d", ano, mes);
         LocalDate vencimento = LocalDate.of(ano, mes, 10);
         return new Mensalidade(UUID.randomUUID(), matriculaId, competencia, valorBase, 100,
-                vencimento, StatusMensalidade.ABERTA, null, false);
+                vencimento, StatusMensalidade.ABERTA, null, false, false);
     }
 
     /** Baixa manual do pagamento (US-14). */
@@ -114,6 +117,16 @@ public class Mensalidade {
         return base.add(multa).add(mora).setScale(2, RoundingMode.HALF_UP);
     }
 
+    /** RN-41: marca que o aviso de atraso ja foi enviado (nao reenviar a cada rodada do job). */
+    public void marcarAvisoAtrasoEnviado() {
+        this.avisoAtrasoEnviado = true;
+    }
+
+    /** True quando a mensalidade esta atrasada e o aviso ainda nao foi disparado. */
+    public boolean precisaAvisarAtraso(LocalDate hoje) {
+        return situacaoEm(hoje) == StatusMensalidade.ATRASADA && !avisoAtrasoEnviado;
+    }
+
     /** Valor efetivo = valorBase * percentual / 100 (derivado). */
     public BigDecimal getValorEfetivo() {
         return valorBase.multiply(BigDecimal.valueOf(percentual))
@@ -155,5 +168,9 @@ public class Mensalidade {
 
     public boolean isProrata() {
         return prorata;
+    }
+
+    public boolean isAvisoAtrasoEnviado() {
+        return avisoAtrasoEnviado;
     }
 }

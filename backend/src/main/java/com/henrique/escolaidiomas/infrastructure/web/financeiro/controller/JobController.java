@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.henrique.escolaidiomas.application.financeiro.usecase.GerarMensalidadesMensaisUseCase;
+import com.henrique.escolaidiomas.application.financeiro.usecase.VerificarInadimplenciaUseCase;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class JobController {
 
     private final GerarMensalidadesMensaisUseCase gerarMensalidadesMensaisUseCase;
+    private final VerificarInadimplenciaUseCase verificarInadimplenciaUseCase;
 
     @Value("${app.job.trigger-secret:}")
     private String jobSecret;
@@ -39,9 +41,8 @@ public class JobController {
             @RequestParam(required = false) Integer ano,
             @RequestParam(required = false) Integer mes) {
 
-        if (!StringUtils.hasText(jobSecret) || !jobSecret.equals(secret)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("erro", "Segredo de job invalido ou ausente."));
+        if (segredoInvalido(secret)) {
+            return naoAutorizado();
         }
 
         YearMonth alvo = (ano != null && mes != null) ? YearMonth.of(ano, mes) : YearMonth.now();
@@ -50,5 +51,30 @@ public class JobController {
         return ResponseEntity.ok(Map.<String, Object>of(
                 "competencia", alvo.toString(),
                 "geradas", geradas));
+    }
+
+    /** RN-29/41: avisa atrasos e alerta a gestao sobre quem atingiu 30 dias. */
+    @PostMapping("/verificar-inadimplencia")
+    public ResponseEntity<Map<String, Object>> verificarInadimplencia(
+            @RequestHeader(value = "X-Job-Secret", required = false) String secret) {
+
+        if (segredoInvalido(secret)) {
+            return naoAutorizado();
+        }
+
+        VerificarInadimplenciaUseCase.Resultado r = verificarInadimplenciaUseCase.execute();
+        return ResponseEntity.ok(Map.<String, Object>of(
+                "avisosAtrasoEnviados", r.avisosAtrasoEnviados(),
+                "itensAtingiram30Dias", r.itensAtingiram30Dias(),
+                "gestoresNotificados", r.gestoresNotificados()));
+    }
+
+    private boolean segredoInvalido(String secret) {
+        return !StringUtils.hasText(jobSecret) || !jobSecret.equals(secret);
+    }
+
+    private ResponseEntity<Map<String, Object>> naoAutorizado() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("erro", "Segredo de job invalido ou ausente."));
     }
 }

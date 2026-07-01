@@ -1,5 +1,9 @@
 package com.henrique.escolaidiomas.infrastructure.persistence.identity.adapter;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -71,6 +75,52 @@ public class JavaMailSenderAdapter implements EmailSenderPort {
                 "Infelizmente nao foi possivel efetivar a matricula neste momento.\n" +
                 "Motivo: " + motivo + "\n\n" +
                 "Qualquer duvida, entre em contato com a escola.");
+
+        mailSender.send(message);
+    }
+
+    @Async
+    @Override
+    public void enviarAvisoCobranca(String destinatario, String nome, String competencia,
+            BigDecimal valor, LocalDate vencimento) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(remetente);
+        message.setTo(destinatario);
+        message.setSubject("Mensalidade " + competencia + " - Escola de Idiomas");
+        message.setText("Ola, " + nome + "!\n\n" +
+                "A mensalidade da competencia " + competencia + " foi gerada.\n" +
+                "Valor: R$ " + valor + "\n" +
+                "Vencimento: " + vencimento + "\n\n" +
+                "Apos o vencimento incidem multa de 2% e mora de R$ 1,00 por dia (teto de 30 dias).");
+
+        mailSender.send(message);
+    }
+
+    @Async
+    @Override
+    public void enviarAvisoAtraso(String destinatario, String nome, String competencia,
+            BigDecimal valorAtualizado, long diasAtraso) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(remetente);
+        message.setTo(destinatario);
+        message.setSubject("Mensalidade " + competencia + " em atraso - Escola de Idiomas");
+        message.setText("Ola, " + nome + "!\n\n" +
+                "A mensalidade da competencia " + competencia + " esta em atraso ha " + diasAtraso + " dia(s).\n" +
+                "Valor atualizado (com multa e mora): R$ " + valorAtualizado + "\n\n" +
+                "Regularize junto a escola para evitar o acumulo da mora.");
+
+        mailSender.send(message);
+    }
+
+    @Async
+    @Override
+    public void enviarAlertaInadimplenciaGestao(String destinatario, List<String> linhas) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(remetente);
+        message.setTo(destinatario);
+        message.setSubject("Alerta de inadimplencia (30 dias) - Escola de Idiomas");
+        message.setText("Os seguintes alunos atingiram 30 dias de atraso e precisam de contato:\n\n" +
+                String.join("\n", linhas));
 
         mailSender.send(message);
     }
