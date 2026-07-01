@@ -1,0 +1,40 @@
+# Infra de desenvolvimento local do EscolaIdiomas.
+# Serviços de apoio (banco + servidor de e-mail de teste). A aplicação Spring Boot
+# roda no host via `mvn spring-boot:run` (hot-reload do devtools) e aponta para cá.
+#
+#   Subir:   docker compose up -d
+#   Parar:   docker compose stop
+#   Zerar:   docker compose down -v   (apaga também o volume do Postgres)
+
+services:
+  db:
+    image: postgres:16
+    container_name: escolaidiomas-db
+    environment:
+      POSTGRES_DB: escola_idiomas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - escolaidiomas_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d escola_idiomas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Servidor SMTP de teste: captura os e-mails do sistema (1º acesso, recuperação, cobrança).
+  # SMTP em 1025 (o backend usa via MAIL_PORT); interface web em http://localhost:8025
+  # MailHog (mesma imagem usada nos seus outros projetos) — SMTP 1025, UI 8025.
+  mailhog:
+    image: mailhog/mailhog
+    container_name: escolaidiomas-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+volumes:
+  escolaidiomas_pgdata:
