@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { DotsThreeOutline, HouseLine, Lightning, Plus, Receipt, User, Wallet } from '@phosphor-icons/react'
+import { DotsThreeOutline, HouseLine, Lightning, PencilSimple, Plus, Receipt, Trash, User, Wallet } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import type { BadgeTone } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,14 +31,17 @@ import { mensagemErro } from '@/lib/api'
 import { competenciaAtual, formatBRL, formatCompetencia, formatDate } from '@/lib/format'
 import { categoriaDespesaLabel, statusMensalidade } from '@/lib/status'
 import {
+  useAtualizarDespesa,
   useDashboard,
   useDarBaixa,
   useDespesas,
+  useEstornarBaixa,
+  useExcluirDespesa,
   useMensalidades,
   useProfessores,
   useRegistrarDespesa,
 } from '@/api/gestao'
-import type { CategoriaDespesa, MensalidadePainel, RegistrarDespesaPayload } from '@/types/api'
+import type { CategoriaDespesa, Despesa, MensalidadePainel, RegistrarDespesaPayload } from '@/types/api'
 
 /** Data de hoje em "yyyy-MM-dd" (fuso local, sem deslocamento do toISOString). */
 function hojeISO(): string {
@@ -134,6 +137,50 @@ function MarcarPagoDialog({ m }: { m: MensalidadePainel }) {
   )
 }
 
+/** Dialog de confirmação de estorno da baixa (só para mensalidade PAGA). */
+function EstornarBaixaDialog({ m }: { m: MensalidadePainel }) {
+  const [open, setOpen] = useState(false)
+  const estornar = useEstornarBaixa()
+
+  async function confirmar() {
+    try {
+      await estornar.mutateAsync(m.id)
+      toast.success('Baixa estornada.')
+      setOpen(false)
+    } catch (e) {
+      toast.error(mensagemErro(e))
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary" size="row">
+          Estornar baixa
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Estornar baixa?</DialogTitle>
+          <DialogDescription>
+            A mensalidade de {m.alunoNome ?? 'aluno'} — {formatCompetencia(m.competencia)} deixará de constar como paga e
+            voltará a ficar em aberto (ou em atraso, conforme o vencimento). O pagamento registrado em{' '}
+            {formatDate(m.dataPagamento)} será desfeito.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="secondary">Cancelar</Button>
+          </DialogClose>
+          <Button variant="destructive" onClick={confirmar} loading={estornar.isPending}>
+            Estornar baixa
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function LinhaAcao({ m }: { m: MensalidadePainel }) {
   if (m.situacao === 'ABERTA' || m.situacao === 'ATRASADA') {
     return (
@@ -143,7 +190,12 @@ function LinhaAcao({ m }: { m: MensalidadePainel }) {
     )
   }
   if (m.situacao === 'PAGA') {
-    return <span className="text-[13px] text-ink-subtle">Baixa em {formatDate(m.dataPagamento)}</span>
+    return (
+      <div className="flex items-center justify-end gap-3">
+        <span className="text-[13px] text-ink-subtle">Baixa em {formatDate(m.dataPagamento)}</span>
+        <EstornarBaixaDialog m={m} />
+      </div>
+    )
   }
   return <span className="text-ink-subtle">—</span>
 }
@@ -267,12 +319,24 @@ const despesaSchema = z
     }
   })
 
-type DespesaForm = z.infer<typeof despesaSchema>
+type DespesaFormValues = z.infer<typeof despesaSchema>
 
-/** Dialog com formulário de registro de despesa (RHF + zod). */
-function RegistrarDespesaDialog() {
-  const [open, setOpen] = useState(false)
+function toDespesaDefaults(despesa: Despesa | null): DespesaFormValues {
+  return {
+    descricao: despesa?.descricao ?? '',
+    categoria: despesa?.categoria ?? '',
+    valor: despesa ? String(despesa.valor) : '',
+    data: despesa?.data ?? hojeISO(),
+    professorId: despesa?.professorId ?? '',
+  }
+}
+
+/** Formulário de despesa (RHF + zod), em modo criar ou editar. */
+function DespesaForm({ despesa, onDone }: { despesa: Despesa | null; onDone: () => void }) {
+  const editando = despesa != null
   const registrar = useRegistrarDespesa()
+  const atualizar = useAtualizarDespesa()
+  const salvando = registrar.isPending || atualizar.isPending
   const { data: professores } = useProfessores()
 
   const {
@@ -280,21 +344,15 @@ function RegistrarDespesaDialog() {
     handleSubmit,
     control,
     watch,
-    reset,
     formState: { errors },
-  } = useForm<DespesaForm>({
+  } = useForm<DespesaFormValues>({
     resolver: zodResolver(despesaSchema),
-    defaultValues: { descricao: '', categoria: '', valor: '', data: hojeISO(), professorId: '' },
+    defaultValues: toDespesaDefaults(despesa),
   })
 
   const repasse = watch('categoria') === 'REPASSE_PROFESSOR'
 
-  function handleOpenChange(o: boolean) {
-    setOpen(o)
-    if (!o) reset()
-  }
-
-  async function onSubmit(v: DespesaForm) {
+  async function onSubmit(v: DespesaFormValues) {
     const payload: RegistrarDespesaPayload = {
       descricao: v.descricao.trim(),
       categoria: v.categoria as CategoriaDespesa,
@@ -303,117 +361,155 @@ function RegistrarDespesaDialog() {
       professorId: v.categoria === 'REPASSE_PROFESSOR' ? v.professorId : undefined,
     }
     try {
-      await registrar.mutateAsync(payload)
-      toast.success('Despesa registrada.')
-      setOpen(false)
-      reset()
+      if (despesa) {
+        await atualizar.mutateAsync({ id: despesa.id, ...payload })
+        toast.success('Despesa atualizada.')
+      } else {
+        await registrar.mutateAsync(payload)
+        toast.success('Despesa registrada.')
+      }
+      onDone()
     } catch (e) {
       toast.error(mensagemErro(e))
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
+      <DialogHeader>
+        <DialogTitle>{editando ? 'Editar despesa' : 'Registrar despesa'}</DialogTitle>
+        <DialogDescription>{editando ? 'Atualize os dados da saída.' : 'Lance uma saída do mês.'}</DialogDescription>
+      </DialogHeader>
+      <DialogBody className="flex flex-col gap-4">
+        <Field label="Descrição" htmlFor="descricao" required error={errors.descricao?.message}>
+          <Input
+            id="descricao"
+            placeholder="Ex.: Conta de luz — junho"
+            invalid={!!errors.descricao}
+            {...register('descricao')}
+          />
+        </Field>
+
+        <Field label="Categoria" required error={errors.categoria?.message}>
+          <Controller
+            control={control}
+            name="categoria"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger invalid={!!errors.categoria}>
+                  <SelectValue placeholder="Escolha a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIAS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {categoriaDespesaLabel[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+
+        {repasse && (
+          <Field
+            label="Professor"
+            required
+            error={errors.professorId?.message}
+            hint="Obrigatório para repasse a professor."
+          >
+            <Controller
+              control={control}
+              name="professorId"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger invalid={!!errors.professorId}>
+                    <SelectValue placeholder="Escolha o professor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(professores ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Valor" htmlFor="valor" required error={errors.valor?.message}>
+            <Input
+              id="valor"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              className="tabular"
+              invalid={!!errors.valor}
+              {...register('valor')}
+            />
+          </Field>
+          <Field label="Data" htmlFor="data" error={errors.data?.message}>
+            <Input id="data" type="date" className="tabular" invalid={!!errors.data} {...register('data')} />
+          </Field>
+        </div>
+      </DialogBody>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="secondary">
+            Cancelar
+          </Button>
+        </DialogClose>
+        <Button type="submit" loading={salvando}>
+          {editando ? 'Salvar' : 'Registrar'}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+/** Dialog de confirmação de exclusão de despesa. */
+function ExcluirDespesaDialog({ despesa }: { despesa: Despesa }) {
+  const [open, setOpen] = useState(false)
+  const excluir = useExcluirDespesa()
+
+  async function confirmar() {
+    try {
+      await excluir.mutateAsync(despesa.id)
+      toast.success('Despesa excluída.')
+      setOpen(false)
+    } catch (e) {
+      toast.error(mensagemErro(e))
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="cta">
-          <Plus size={18} weight="bold" />
-          Registrar despesa
+        <Button variant="secondary" size="row">
+          <Trash size={16} />
+          Excluir
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-          <DialogHeader>
-            <DialogTitle>Registrar despesa</DialogTitle>
-            <DialogDescription>Lance uma saída do mês.</DialogDescription>
-          </DialogHeader>
-          <DialogBody className="flex flex-col gap-4">
-            <Field label="Descrição" htmlFor="descricao" required error={errors.descricao?.message}>
-              <Input
-                id="descricao"
-                placeholder="Ex.: Conta de luz — junho"
-                invalid={!!errors.descricao}
-                {...register('descricao')}
-              />
-            </Field>
-
-            <Field label="Categoria" required error={errors.categoria?.message}>
-              <Controller
-                control={control}
-                name="categoria"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger invalid={!!errors.categoria}>
-                      <SelectValue placeholder="Escolha a categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {categoriaDespesaLabel[c]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
-
-            {repasse && (
-              <Field
-                label="Professor"
-                required
-                error={errors.professorId?.message}
-                hint="Obrigatório para repasse a professor."
-              >
-                <Controller
-                  control={control}
-                  name="professorId"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger invalid={!!errors.professorId}>
-                        <SelectValue placeholder="Escolha o professor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(professores ?? []).map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Valor" htmlFor="valor" required error={errors.valor?.message}>
-                <Input
-                  id="valor"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0,00"
-                  className="tabular"
-                  invalid={!!errors.valor}
-                  {...register('valor')}
-                />
-              </Field>
-              <Field label="Data" htmlFor="data" error={errors.data?.message}>
-                <Input id="data" type="date" className="tabular" invalid={!!errors.data} {...register('data')} />
-              </Field>
-            </div>
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit" loading={registrar.isPending}>
-              Registrar
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogHeader>
+          <DialogTitle>Excluir despesa?</DialogTitle>
+          <DialogDescription>
+            A despesa “{despesa.descricao}” ({formatBRL(despesa.valor)}) será removida permanentemente. Esta ação não
+            pode ser desfeita.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="secondary">Cancelar</Button>
+          </DialogClose>
+          <Button variant="destructive" onClick={confirmar} loading={excluir.isPending}>
+            Excluir
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -424,11 +520,27 @@ function DespesasTab({ comp }: { comp: string }) {
   const despesas = data ?? []
   const total = despesas.reduce((acc, d) => acc + d.valor, 0)
 
+  const [dialogAberto, setDialogAberto] = useState(false)
+  const [editando, setEditando] = useState<Despesa | null>(null)
+
+  function abrirNova() {
+    setEditando(null)
+    setDialogAberto(true)
+  }
+
+  function abrirEdicao(despesa: Despesa) {
+    setEditando(despesa)
+    setDialogAberto(true)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[15px] text-ink-muted">Saídas registradas em {formatCompetencia(comp)}.</p>
-        <RegistrarDespesaDialog />
+        <Button variant="cta" onClick={abrirNova}>
+          <Plus size={18} weight="bold" />
+          Registrar despesa
+        </Button>
       </div>
 
       {isLoading ? (
@@ -449,6 +561,7 @@ function DespesasTab({ comp }: { comp: string }) {
               <TH>Categoria</TH>
               <TH>Data</TH>
               <TH className="text-right">Valor</TH>
+              <TH className="text-right">Ações</TH>
             </TR>
           </THead>
           <TBody>
@@ -460,6 +573,15 @@ function DespesasTab({ comp }: { comp: string }) {
                 </TD>
                 <TD className="tabular text-ink-muted">{formatDate(d.data)}</TD>
                 <TD className="text-right tabular font-semibold text-ink">{formatBRL(d.valor)}</TD>
+                <TD className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="row" onClick={() => abrirEdicao(d)}>
+                      <PencilSimple size={16} />
+                      Editar
+                    </Button>
+                    <ExcluirDespesaDialog despesa={d} />
+                  </div>
+                </TD>
               </TR>
             ))}
             <TR className="bg-canvas">
@@ -467,10 +589,23 @@ function DespesasTab({ comp }: { comp: string }) {
                 Total de despesas em {formatCompetencia(comp)}
               </TD>
               <TD className="text-right text-lg font-extrabold tabular text-brand">{formatBRL(total)}</TD>
+              <TD />
             </TR>
           </TBody>
         </Table>
       )}
+
+      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
+        <DialogContent>
+          {dialogAberto && (
+            <DespesaForm
+              key={editando?.id ?? 'nova'}
+              despesa={editando}
+              onDone={() => setDialogAberto(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

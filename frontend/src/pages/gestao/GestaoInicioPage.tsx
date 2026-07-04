@@ -1,12 +1,21 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { CaretRight, ClipboardText, Clock, CurrencyDollar, Users, Wallet, Warning } from '@phosphor-icons/react'
-import { useDashboard } from '@/api/gestao'
+import {
+  CaretRight,
+  CheckCircle,
+  ClipboardText,
+  Clock,
+  CurrencyDollar,
+  Users,
+  Wallet,
+  Warning,
+} from '@phosphor-icons/react'
+import { useDashboard, useMatriculas, useMensalidades } from '@/api/gestao'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/states'
-import { competenciaAtual, formatBRL, formatCompetencia } from '@/lib/format'
+import { competenciaAtual, formatBRL, formatCompetencia, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Dashboard } from '@/types/api'
 
@@ -138,6 +147,238 @@ function ResumoCarregando() {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Seção "Precisa da sua atenção" — itens acionáveis (matrículas + mensalidades)
+// ---------------------------------------------------------------------------
+
+/** yyyy-MM-dd no fuso local (sem deslocamento do toISOString). */
+function dataLocalISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+type AtencaoTone = 'warning' | 'danger' | 'info'
+
+const chipTint: Record<AtencaoTone, string> = {
+  warning: 'bg-warning-bg text-warning',
+  danger: 'bg-danger-bg text-danger',
+  info: 'bg-info-bg text-info',
+}
+
+/** Uma linha: nome do aluno (forte) + subtítulo à esquerda, valor/meta à direita. */
+function LinhaAtencao({
+  nome,
+  sub,
+  subTone,
+  direita,
+  direitaClass,
+}: {
+  nome: string
+  sub: string
+  subTone?: 'muted' | 'danger'
+  direita: string
+  direitaClass: string
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 border-t border-line py-2 first:border-t-0 first:pt-0 last:pb-0">
+      <div className="min-w-0">
+        <div className="truncate text-[14px] font-semibold text-ink">{nome}</div>
+        <div
+          className={cn(
+            'truncate text-[12.5px]',
+            subTone === 'danger' ? 'font-medium text-danger-dark' : 'text-ink-muted',
+          )}
+        >
+          {sub}
+        </div>
+      </div>
+      <span className={cn('shrink-0 tabular', direitaClass)}>{direita}</span>
+    </li>
+  )
+}
+
+/** Card de um grupo acionável: cabeçalho + até 3 linhas + "e mais N" + link. */
+function GrupoAtencao({
+  icon,
+  tone,
+  titulo,
+  total,
+  mostrados,
+  unidade,
+  to,
+  cta,
+  children,
+}: {
+  icon: ReactNode
+  tone: AtencaoTone
+  titulo: string
+  total: number
+  mostrados: number
+  unidade: [string, string]
+  to: string
+  cta: string
+  children: ReactNode
+}) {
+  const restante = total - mostrados
+  return (
+    <Card className="flex min-w-0 flex-1 flex-col p-5">
+      <div className="flex items-center gap-2.5">
+        <div className={cn('grid size-9 shrink-0 place-items-center rounded-xl', chipTint[tone])}>{icon}</div>
+        <h3 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ink">{titulo}</h3>
+        <Badge tone={tone}>{total}</Badge>
+      </div>
+      <ul className="mt-3">{children}</ul>
+      {restante > 0 && (
+        <p className="mt-2.5 text-[12.5px] text-ink-muted">
+          e mais {restante} {restante === 1 ? unidade[0] : unidade[1]}
+        </p>
+      )}
+      <Link
+        to={to}
+        className="group mt-3.5 inline-flex items-center gap-1 self-start text-[13px] font-semibold text-brand"
+      >
+        {cta}
+        <CaretRight size={14} weight="bold" className="transition group-hover:translate-x-0.5" />
+      </Link>
+    </Card>
+  )
+}
+
+/** Título da seção reutilizado no estado carregado e no "tudo em dia". */
+function AtencaoHeading() {
+  return <h2 className="text-base font-bold tracking-[-.01em] text-ink">Precisa da sua atenção</h2>
+}
+
+/** Consulta matrículas aguardando + mensalidades da competência e destaca o acionável. */
+function AtencaoSection({ competencia }: { competencia: string }) {
+  const matriculas = useMatriculas('AGUARDANDO_APROVACAO')
+  const mensalidades = useMensalidades(competencia)
+
+  if (matriculas.isLoading || mensalidades.isLoading) {
+    return (
+      <section className="flex flex-col gap-4">
+        <Skeleton className="h-6 w-44 rounded" />
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <Skeleton className="h-[172px] w-full rounded-2xl lg:flex-1" />
+          <Skeleton className="h-[172px] w-full rounded-2xl lg:flex-1" />
+        </div>
+      </section>
+    )
+  }
+
+  const aguardando = [...(matriculas.data ?? [])].sort((a, b) => a.dataMatricula.localeCompare(b.dataMatricula))
+
+  const mens = mensalidades.data ?? []
+  const atrasadas = mens.filter((m) => m.situacao === 'ATRASADA').sort((a, b) => b.diasAtraso - a.diasAtraso)
+
+  // "Vencendo esta semana": em aberto com vencimento entre hoje e +7 dias (compara strings yyyy-MM-dd).
+  const hoje = new Date()
+  const limite = new Date(hoje)
+  limite.setDate(limite.getDate() + 7)
+  const hojeStr = dataLocalISO(hoje)
+  const limiteStr = dataLocalISO(limite)
+  const vencendo = mens
+    .filter((m) => m.situacao === 'ABERTA' && m.vencimento >= hojeStr && m.vencimento <= limiteStr)
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento))
+
+  const temAlgo = aguardando.length > 0 || atrasadas.length > 0 || vencendo.length > 0
+
+  if (!temAlgo) {
+    // Se ambas as consultas falharam e não há dados, não afirme "tudo em dia".
+    if (matriculas.isError && mensalidades.isError) return null
+    return (
+      <section className="flex flex-col gap-4">
+        <AtencaoHeading />
+        <Card className="flex items-center gap-3 p-5">
+          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-success-bg text-success">
+            <CheckCircle size={18} weight="fill" />
+          </div>
+          <div>
+            <div className="text-[14px] font-semibold text-ink">Tudo em dia</div>
+            <p className="text-[12.5px] text-ink-muted">Sem matrículas aguardando ou mensalidades atrasadas.</p>
+          </div>
+        </Card>
+      </section>
+    )
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <AtencaoHeading />
+      <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap">
+        {aguardando.length > 0 && (
+          <GrupoAtencao
+            icon={<ClipboardText size={18} weight="fill" />}
+            tone="warning"
+            titulo="Matrículas aguardando"
+            total={aguardando.length}
+            mostrados={Math.min(aguardando.length, 3)}
+            unidade={['solicitação', 'solicitações']}
+            to="/gestao/matriculas"
+            cta="Revisar solicitações"
+          >
+            {aguardando.slice(0, 3).map((m) => (
+              <LinhaAtencao
+                key={m.id}
+                nome={m.alunoNome ?? 'Aluno'}
+                sub={m.turmaNome ?? '—'}
+                direita={formatDate(m.dataMatricula)}
+                direitaClass="text-[12.5px] text-ink-subtle"
+              />
+            ))}
+          </GrupoAtencao>
+        )}
+
+        {atrasadas.length > 0 && (
+          <GrupoAtencao
+            icon={<Warning size={18} weight="fill" />}
+            tone="danger"
+            titulo="Mensalidades atrasadas"
+            total={atrasadas.length}
+            mostrados={Math.min(atrasadas.length, 3)}
+            unidade={['mensalidade', 'mensalidades']}
+            to="/gestao/financeiro"
+            cta="Ver no financeiro"
+          >
+            {atrasadas.slice(0, 3).map((m) => (
+              <LinhaAtencao
+                key={m.id}
+                nome={m.alunoNome ?? 'Aluno'}
+                sub={`${m.diasAtraso} ${m.diasAtraso === 1 ? 'dia' : 'dias'} em atraso`}
+                subTone="danger"
+                direita={formatBRL(m.valorAtualizado)}
+                direitaClass="text-[14px] font-bold text-danger-dark"
+              />
+            ))}
+          </GrupoAtencao>
+        )}
+
+        {vencendo.length > 0 && (
+          <GrupoAtencao
+            icon={<Clock size={18} weight="fill" />}
+            tone="info"
+            titulo="Vencendo esta semana"
+            total={vencendo.length}
+            mostrados={Math.min(vencendo.length, 3)}
+            unidade={['mensalidade', 'mensalidades']}
+            to="/gestao/financeiro"
+            cta="Ver no financeiro"
+          >
+            {vencendo.slice(0, 3).map((m) => (
+              <LinhaAtencao
+                key={m.id}
+                nome={m.alunoNome ?? 'Aluno'}
+                sub={`vence ${formatDate(m.vencimento)}`}
+                direita={formatBRL(m.valorEfetivo)}
+                direitaClass="text-[14px] font-semibold text-ink"
+              />
+            ))}
+          </GrupoAtencao>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export default function GestaoInicioPage() {
   const { data, isLoading, isError, refetch } = useDashboard()
   const competencia = data?.competencia ?? competenciaAtual()
@@ -155,10 +396,11 @@ export default function GestaoInicioPage() {
           description="Tente novamente em instantes."
           onRetry={() => refetch()}
         />
-      ) : isLoading || !data ? (
-        <ResumoCarregando />
       ) : (
-        <ResumoCarregado d={data} />
+        <>
+          {isLoading || !data ? <ResumoCarregando /> : <ResumoCarregado d={data} />}
+          <AtencaoSection competencia={competencia} />
+        </>
       )}
     </div>
   )

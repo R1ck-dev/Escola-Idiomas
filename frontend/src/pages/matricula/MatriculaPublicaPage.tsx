@@ -13,10 +13,12 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/states'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toaster'
 import { mensagemErro } from '@/lib/api'
-import { solicitarMatricula } from '@/api/matricula'
-import type { SolicitarMatriculaPayload } from '@/types/api'
+import { formatBRL, formatHora } from '@/lib/format'
+import { solicitarMatricula, useTurmaPublica } from '@/api/matricula'
+import type { SolicitarMatriculaPayload, TurmaPublica } from '@/types/api'
 
 const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/
 const telRegex = /^\(\d{2}\)\s?\d{4,5}-\d{4}$/
@@ -106,11 +108,53 @@ function Passo({ n, children }: { n: number; children: ReactNode }) {
   )
 }
 
+/** "SEG,QUA" + horas → "SEG,QUA · 19:00–20:30" (mantém o texto cru dos dias). */
+function linhaHorario(turma: TurmaPublica): string {
+  const partes: string[] = []
+  if (turma.diasSemana) partes.push(turma.diasSemana)
+  const ini = formatHora(turma.horaInicio)
+  const fim = formatHora(turma.horaFim)
+  if (ini && fim) partes.push(`${ini}–${fim}`)
+  else if (ini) partes.push(ini)
+  return partes.join(' · ')
+}
+
+/** Banner "Turma pretendida" (tela 1f) — turma pré-selecionada pelo link. */
+function BannerTurma({ turma }: { turma: TurmaPublica }) {
+  const horario = linhaHorario(turma)
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl bg-navy-950 p-5 text-white sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[.12em] text-accent">Turma pretendida</p>
+        <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-accent">
+          Pré-selecionada
+        </span>
+      </div>
+      <h2 className="mt-2 text-xl font-bold tracking-tight">{turma.nome}</h2>
+      <p className="mt-1 text-sm text-navy-300">
+        {turma.idioma}
+        {turma.nivel ? ` · Nível ${turma.nivel}` : ''}
+      </p>
+      <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-navy-100">
+        {horario && (
+          <>
+            <span>{horario}</span>
+            <span className="text-navy-300">·</span>
+          </>
+        )}
+        <span className="font-semibold text-white">{formatBRL(turma.valorMensalidade)}/mês</span>
+      </p>
+    </div>
+  )
+}
+
 export default function MatriculaPublicaPage() {
   const [searchParams] = useSearchParams()
   const turmaId = searchParams.get('turmaId')
   const [enviado, setEnviado] = useState(false)
   const [erroServidor, setErroServidor] = useState<string | null>(null)
+
+  const { data: turma, isLoading: turmaLoading, isError: turmaError } = useTurmaPublica(turmaId ?? undefined)
 
   const {
     register,
@@ -161,7 +205,7 @@ export default function MatriculaPublicaPage() {
       <div className="mx-auto flex min-h-screen w-full max-w-[760px] flex-col items-center px-5 py-10">
         <Logo size="md" className="mb-8" />
 
-        {!turmaId ? (
+        {(!turmaId || turmaError) && !enviado ? (
           <Card className="w-full max-w-[560px]">
             <CardContent>
               <EmptyState
@@ -182,7 +226,15 @@ export default function MatriculaPublicaPage() {
                 Recebemos sua solicitação!
               </h1>
               <p className="mt-3 max-w-[420px] text-[15px] leading-relaxed text-ink-muted">
-                A escola vai avaliar o seu pedido de matrícula e você receberá um e-mail com a resposta.
+                {turma?.nome ? (
+                  <>
+                    A escola vai avaliar o seu pedido de matrícula na turma{' '}
+                    <strong className="font-semibold text-ink">{turma.nome}</strong> e você receberá um e-mail
+                    com a resposta.
+                  </>
+                ) : (
+                  'A escola vai avaliar o seu pedido de matrícula e você receberá um e-mail com a resposta.'
+                )}
               </p>
 
               <ol className="mt-7 flex w-full max-w-[380px] flex-col gap-4 text-left">
@@ -209,6 +261,12 @@ export default function MatriculaPublicaPage() {
                 <CardDescription>Os campos marcados com * são obrigatórios.</CardDescription>
               </CardHeader>
               <CardContent>
+                {turmaLoading ? (
+                  <Skeleton className="mb-6 h-[104px] w-full rounded-2xl" />
+                ) : turma ? (
+                  <BannerTurma turma={turma} />
+                ) : null}
+
                 {erroServidor && (
                   <div className="mb-6 flex items-start gap-3 rounded border border-danger/30 bg-danger-bg px-4 py-3 text-[14px] text-danger-dark">
                     <XCircle weight="fill" size={20} className="mt-0.5 shrink-0 text-danger" />

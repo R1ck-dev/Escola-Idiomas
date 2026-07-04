@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Books, Clock, Info, PencilSimple, Plus, User } from '@phosphor-icons/react'
+import { Books, Clock, Info, LinkSimple, PencilSimple, Plus, User } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +39,17 @@ function horarioTexto(t: TurmaGestao): string {
   if (ini && fim) partes.push(`${ini}–${fim}`)
   else if (ini) partes.push(ini)
   return partes.join(' · ') || 'Horário a definir'
+}
+
+/** Copia o link público de matrícula da turma para a área de transferência. */
+async function copiarLinkMatricula(turmaId: string) {
+  const url = `${window.location.origin}/matricula?turmaId=${turmaId}`
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.success('Link de matrícula copiado para a área de transferência.')
+  } catch {
+    toast.error(`Não foi possível copiar automaticamente. Link: ${url}`)
+  }
 }
 
 // ---------- Formulário (schema + zod) ----------
@@ -346,10 +357,23 @@ function TurmaCard({ turma, onEditar }: { turma: TurmaGestao; onEditar: () => vo
         </div>
       </div>
 
-      <Button variant="secondary" size="row" className="mt-4 w-full" onClick={onEditar}>
-        <PencilSimple size={16} />
-        Editar
-      </Button>
+      <div className="mt-4 flex gap-2">
+        {turma.ativa && (
+          <Button
+            variant="secondary"
+            size="row"
+            className="flex-1"
+            onClick={() => copiarLinkMatricula(turma.id)}
+          >
+            <LinkSimple size={16} />
+            Copiar link
+          </Button>
+        )}
+        <Button variant="secondary" size="row" className="flex-1" onClick={onEditar}>
+          <PencilSimple size={16} />
+          Editar
+        </Button>
+      </div>
     </Card>
   )
 }

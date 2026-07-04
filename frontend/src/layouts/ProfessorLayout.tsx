@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useOutletContext } from 'react-router-dom'
+import { Link, Outlet, useLocation, useOutletContext } from 'react-router-dom'
 import {
   CaretDown,
   ChalkboardTeacher,
@@ -34,43 +34,64 @@ interface NavItemDef {
   to: string
   label: string
   icon: typeof ChalkboardTeacher
-  end?: boolean
+  /** A rota top-level e suas variantes turma-escopadas acendem o mesmo item. */
+  match: (pathname: string) => boolean
 }
 
 const NAV: NavItemDef[] = [
-  { to: '/professor', label: 'Minhas turmas', icon: ChalkboardTeacher, end: true },
-  { to: '/professor/chamada', label: 'Chamada', icon: ListChecks },
-  { to: '/professor/notas', label: 'Notas', icon: NotePencil },
-  { to: '/professor/boletins', label: 'Boletins', icon: GraduationCap },
+  {
+    to: '/professor',
+    label: 'Minhas turmas',
+    icon: ChalkboardTeacher,
+    match: (p) => p === '/professor' || /^\/professor\/turmas\/[^/]+\/alunos$/.test(p),
+  },
+  {
+    to: '/professor/chamada',
+    label: 'Chamada',
+    icon: ListChecks,
+    match: (p) => p === '/professor/chamada' || /^\/professor\/turmas\/[^/]+\/chamada$/.test(p),
+  },
+  {
+    to: '/professor/notas',
+    label: 'Notas',
+    icon: NotePencil,
+    match: (p) => p === '/professor/notas' || /^\/professor\/turmas\/[^/]+\/notas$/.test(p),
+  },
+  {
+    to: '/professor/boletins',
+    label: 'Boletins',
+    icon: GraduationCap,
+    match: (p) =>
+      p === '/professor/boletins' ||
+      /^\/professor\/turmas\/[^/]+\/boletim$/.test(p) ||
+      /^\/professor\/boletim\/[^/]+$/.test(p),
+  },
 ]
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+  const { pathname } = useLocation()
   return (
     <nav className="flex flex-col gap-[3px]">
-      {NAV.map(({ to, label, icon: Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
+      {NAV.map(({ to, label, icon: Icon, match }) => {
+        const isActive = match(pathname)
+        return (
+          <Link
+            key={to}
+            to={to}
+            onClick={onNavigate}
+            className={cn(
               'relative flex items-center gap-3 rounded px-3.5 py-3 text-[15px] transition',
               isActive
                 ? 'bg-white/10 font-semibold text-white'
                 : 'font-medium text-navy-200 hover:bg-white/5 hover:text-white',
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && <span className="absolute inset-y-2.5 left-0 w-[3px] rounded-[2px] bg-accent" />}
-              <Icon size={20} weight={isActive ? 'fill' : 'regular'} className={isActive ? 'text-accent' : ''} />
-              {label}
-            </>
-          )}
-        </NavLink>
-      ))}
+            )}
+          >
+            {isActive && <span className="absolute inset-y-2.5 left-0 w-[3px] rounded-[2px] bg-accent" />}
+            <Icon size={20} weight={isActive ? 'fill' : 'regular'} className={isActive ? 'text-accent' : ''} />
+            {label}
+          </Link>
+        )
+      })}
     </nav>
   )
 }
@@ -82,7 +103,7 @@ function UserFooter() {
       <Avatar nome={user?.nome ?? '?'} onDark className="size-[38px]" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-white">{user?.nome}</div>
-        <div className="text-xs text-navy-300">Professora</div>
+        <div className="text-xs text-navy-300">Professor(a)</div>
       </div>
       <button onClick={logout} aria-label="Sair" className="text-navy-300 transition hover:text-white">
         <SignOut size={20} />

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
+  AtualizarProfessorPayload,
   AtualizarTurmaPayload,
   CadastrarProfessorPayload,
   CriarSemestrePayload,
@@ -113,6 +114,22 @@ export function useCadastrarProfessor() {
   })
 }
 
+export function useAtualizarProfessor() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: { id: string } & AtualizarProfessorPayload) =>
+      (await api.put<Professor>(`/api/professores/${id}`, payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gestao', 'professores'] }),
+  })
+}
+
+export function useReenviarConviteProfessor() {
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<{ mensagem: string }>(`/api/professores/${id}/reenviar-convite`)).data,
+  })
+}
+
 // ---------- Financeiro (G6) ----------
 
 export function useMensalidades(competencia: string) {
@@ -138,6 +155,19 @@ export function useDarBaixa() {
   })
 }
 
+/** Estorna uma mensalidade PAGA, revertendo-a para ABERTA/ATRASADA. */
+export function useEstornarBaixa() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<MensalidadePainel>(`/api/mensalidades/${id}/estornar`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['gestao', 'mensalidades'] })
+      qc.invalidateQueries({ queryKey: ['gestao', 'dashboard'] })
+    },
+  })
+}
+
 // ---------- Despesas (G7) ----------
 
 export function useDespesas(competencia: string) {
@@ -152,6 +182,25 @@ export function useRegistrarDespesa() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: RegistrarDespesaPayload) => (await api.post<Despesa>('/api/despesas', payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gestao', 'despesas'] }),
+  })
+}
+
+export function useAtualizarDespesa() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: { id: string } & RegistrarDespesaPayload) =>
+      (await api.put<Despesa>(`/api/despesas/${id}`, payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gestao', 'despesas'] }),
+  })
+}
+
+export function useExcluirDespesa() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/despesas/${id}`)
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['gestao', 'despesas'] }),
   })
 }

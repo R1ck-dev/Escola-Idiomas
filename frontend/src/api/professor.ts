@@ -56,6 +56,9 @@ export function useLancarNota() {
     mutationFn: async (payload: LancarNotaPayload) => (await api.post<Avaliacao>('/api/notas', payload)).data,
     onSuccess: (_res, payload) => {
       qc.invalidateQueries({ queryKey: ['boletim', payload.matriculaId] })
+      // A tabela de boletim da turma e o pre-preenchimento de notas usam outra chave
+      // (['professor','turma',turmaId,'boletins',...]); invalida o prefixo para refletir a nota.
+      qc.invalidateQueries({ queryKey: ['professor', 'turma'] })
     },
   })
 }

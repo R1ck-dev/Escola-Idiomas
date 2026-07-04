@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Boletim, Mensalidade, Turma } from '@/types/api'
+import type { Boletim, Mensalidade, TurmaDoAluno } from '@/types/api'
 
 export function useMinhasTurmasAluno() {
   return useQuery({
     queryKey: ['aluno', 'turmas'],
-    queryFn: async () => (await api.get<Turma[]>('/api/alunos/me/turmas')).data,
+    queryFn: async () => (await api.get<TurmaDoAluno[]>('/api/alunos/me/turmas')).data,
   })
 }
 

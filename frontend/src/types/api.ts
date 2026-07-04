@@ -38,6 +38,34 @@ export interface Turma {
   ativa: boolean
 }
 
+/** Turma exposta publicamente (GET /api/turmas/{id}/publica): sem professor/ocupação. */
+export interface TurmaPublica {
+  id: string
+  nome: string
+  idioma: string
+  nivel: string | null
+  diasSemana: string | null
+  horaInicio: string | null // "HH:mm:ss"
+  horaFim: string | null
+  valorMensalidade: number
+}
+
+/** Turma do próprio aluno (GET /api/alunos/me/turmas): tem professorNome, NÃO tem ocupacaoAtual. */
+export interface TurmaDoAluno {
+  id: string
+  professorId: string
+  professorNome: string | null
+  nome: string
+  idioma: string
+  nivel: string | null
+  diasSemana: string | null
+  horaInicio: string | null // "HH:mm:ss"
+  horaFim: string | null
+  valorMensalidade: number
+  lotacaoMaxima: number
+  ativa: boolean
+}
+
 export interface Matricula {
   id: string
   alunoId: string
@@ -272,6 +300,14 @@ export interface CadastrarProfessorPayload {
   chavePix?: string
   dadosBancarios?: string
   idiomasHabilitados?: string
+}
+
+export interface AtualizarProfessorPayload {
+  nome: string
+  telefone?: string | null
+  chavePix?: string | null
+  dadosBancarios?: string | null
+  idiomasHabilitados?: string | null
 }
 
 export interface CriarTurmaPayload {

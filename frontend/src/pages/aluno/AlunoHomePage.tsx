@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/states'
 import { competenciaAtual, formatBRL, formatCompetencia, formatDate, formatHora } from '@/lib/format'
 import { situacaoAprovacao, statusMensalidade } from '@/lib/status'
-import type { Boletim, SituacaoAprovacao, Turma } from '@/types/api'
+import type { Boletim, SituacaoAprovacao, TurmaDoAluno } from '@/types/api'
 
 const AMBER = '#F5B70A'
 
@@ -18,7 +18,7 @@ function formatNota(n: number | null): string {
 }
 
 /** "19:00:00"–"20:30:00" → "19:00–20:30". */
-function faixaHorario(t: Turma): string {
+function faixaHorario(t: TurmaDoAluno): string {
   const ini = formatHora(t.horaInicio)
   const fim = formatHora(t.horaFim)
   if (ini && fim) return `${ini}–${fim}`

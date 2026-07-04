@@ -1,8 +1,9 @@
 import { BookOpen, CalendarBlank, Clock, Student } from '@phosphor-icons/react'
+import { Avatar } from '@/components/ui/avatar'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { formatHora } from '@/lib/format'
 import { useMinhasTurmasAluno } from '@/api/aluno'
-import type { Turma } from '@/types/api'
+import type { TurmaDoAluno } from '@/types/api'
 
 const DIAS: Record<string, string> = {
   DOM: 'Domingo',
@@ -47,7 +48,7 @@ function formatHorario(inicio: string | null, fim: string | null): string {
   return 'A combinar'
 }
 
-function TurmaCard({ turma }: { turma: Turma }) {
+function TurmaCard({ turma }: { turma: TurmaDoAluno }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(16,24,40,.04)]">
       <header className="flex items-start justify-between gap-4 bg-navy-950 p-5 text-white sm:p-6">
@@ -64,6 +65,26 @@ function TurmaCard({ turma }: { turma: Turma }) {
       </header>
 
       <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 sm:p-6">
+        <div className="flex items-center gap-3 sm:col-span-2">
+          {turma.professorNome ? (
+            <Avatar nome={turma.professorNome} tint />
+          ) : (
+            <div className="grid size-10 shrink-0 place-items-center rounded-full border border-dashed border-line text-ink-subtle">
+              <Student size={18} />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              Professor(a)
+            </p>
+            {turma.professorNome ? (
+              <p className="mt-0.5 truncate font-semibold text-ink">{turma.professorNome}</p>
+            ) : (
+              <p className="mt-0.5 font-semibold text-ink-muted">A definir</p>
+            )}
+          </div>
+        </div>
+
         <div className="flex items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-navy-50 text-brand">
             <CalendarBlank size={20} />
