@@ -1,0 +1,122 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   Design tokens — extraídos dos mockups do Claude Design (Docs/06-design).
+   Identidade: azul-marinho + amarelo, limpo/profissional/acolhedor.
+   ========================================================================== */
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Marca — azul-marinho */
+  --color-navy-950: #0c2a4d; /* capa / fundos escuros */
+  --color-navy-900: #123a66; /* brand base */
+  --color-navy-800: #163f70;
+  --color-navy-700: #144c8f; /* hover interativo */
+  --color-navy-600: #1e5aa8; /* links / interativo */
+  --color-navy-300: #8fa8c7; /* texto sobre navy */
+  --color-navy-200: #a9bad0;
+  --color-navy-100: #c3d0e0;
+  --color-navy-50: #eaf0f7; /* tint navy sobre claro */
+
+  --color-brand: #123a66;
+  --color-brand-dark: #0c2a4d;
+  --color-brand-hover: #0f3159;
+
+  /* Destaque — amarelo-ouro (CTA/realces; texto escuro por cima) */
+  --color-accent: #f5b70a;
+  --color-accent-light: #ffce3a;
+  --color-accent-hover: #e0a600;
+  --color-accent-dark: #7a5a00;
+
+  /* Texto */
+  --color-ink: #1a2433;
+  --color-ink-muted: #5a6474;
+  --color-ink-subtle: #8a94a6;
+
+  /* Superfícies e linhas (neutros quentes, sem cinza morto) */
+  --color-canvas: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f2f5;
+  --color-zebra: #fbfcfd;
+  --color-line: #e4e7ec;
+  --color-line-strong: #cbd2dc;
+
+  /* Semânticos (status) */
+  --color-success: #1e9e5a;
+  --color-success-dark: #12703f;
+  --color-success-bg: #e4f5ec;
+  --color-danger: #e4572e;
+  --color-danger-dark: #b23a18;
+  --color-danger-bg: #fce9e3;
+  --color-warning: #e0a400;
+  --color-warning-fg: #7a5a00;
+  --color-warning-bg: #fbf0d6;
+  --color-info: #1e5aa8;
+  --color-info-bg: #e7f0fb;
+  --color-info-border: #d5e1ef;
+
+  /* Raios (padrão 11px = botões/inputs/nav; card = 18px) */
+  --radius-sm: 8px;
+  --radius: 11px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+
+  /* Sombras */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-pop: 0 6px 18px rgba(16, 24, 40, 0.08);
+  --shadow-md: 0 6px 18px rgba(18, 58, 102, 0.12);
+  --shadow-lg: 0 10px 26px rgba(18, 58, 102, 0.18);
+  --shadow-dark: 0 8px 24px rgba(12, 42, 77, 0.18);
+
+  /* Animações */
+  --animate-shimmer: shimmer 1.3s linear infinite;
+  --animate-spin-fast: spin-fast 0.7s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes spin-fast {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Foco visível e acessível em todo o produto */
+  :focus-visible {
+    outline: 2px solid var(--color-navy-600);
+    outline-offset: 2px;
+  }
+  /* Números tabulares para valores financeiros */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
