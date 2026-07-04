@@ -16,8 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.henrique.escolaidiomas.application.matricula.dto.DadosAlunoInput;
 import com.henrique.escolaidiomas.application.matricula.dto.DadosResponsavelInput;
 import com.henrique.escolaidiomas.application.matricula.dto.MatriculaDTO;
+import com.henrique.escolaidiomas.application.matricula.dto.MatriculaDetalhadaDTO;
 import com.henrique.escolaidiomas.application.matricula.dto.SolicitarMatriculaInput;
 import com.henrique.escolaidiomas.application.matricula.usecase.AprovarMatriculaUseCase;
+import com.henrique.escolaidiomas.application.matricula.usecase.BuscarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.EncerrarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.ListarMatriculasUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.RejeitarMatriculaUseCase;
@@ -41,6 +43,7 @@ public class MatriculaController {
     private final TrancarMatriculaUseCase trancarMatriculaUseCase;
     private final EncerrarMatriculaUseCase encerrarMatriculaUseCase;
     private final ListarMatriculasUseCase listarMatriculasUseCase;
+    private final BuscarMatriculaUseCase buscarMatriculaUseCase;
 
     /** PUBLICO (US-04): candidato solicita a matricula via link. */
     @PostMapping
@@ -59,10 +62,16 @@ public class MatriculaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(solicitarMatriculaUseCase.execute(input));
     }
 
-    /** GESTAO (US-05): lista matriculas, opcionalmente por status. */
+    /** GESTAO (US-05): lista matriculas (com nomes de aluno/turma), opcionalmente por status. */
     @GetMapping
-    public ResponseEntity<List<MatriculaDTO>> listar(@RequestParam(required = false) StatusMatricula status) {
+    public ResponseEntity<List<MatriculaDetalhadaDTO>> listar(@RequestParam(required = false) StatusMatricula status) {
         return ResponseEntity.ok(listarMatriculasUseCase.execute(status));
+    }
+
+    /** GESTAO: detalhe de uma matricula com nomes resolvidos. */
+    @GetMapping("/{id}")
+    public ResponseEntity<MatriculaDetalhadaDTO> buscar(@PathVariable UUID id) {
+        return ResponseEntity.ok(buscarMatriculaUseCase.execute(id));
     }
 
     @PostMapping("/{id}/aprovar")

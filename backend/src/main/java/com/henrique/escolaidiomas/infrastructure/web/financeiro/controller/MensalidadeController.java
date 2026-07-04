@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
+import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadePainelDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarPainelFinanceiroUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.DarBaixaMensalidadeUseCase;
 
@@ -28,9 +29,9 @@ public class MensalidadeController {
     private final ConsultarPainelFinanceiroUseCase consultarPainelFinanceiroUseCase;
     private final DarBaixaMensalidadeUseCase darBaixaMensalidadeUseCase;
 
-    /** RN-12: painel do mes (ex.: ?competencia=2026-08). */
+    /** RN-12: painel do mes com nomes de aluno/turma (ex.: ?competencia=2026-08). */
     @GetMapping
-    public ResponseEntity<List<MensalidadeDTO>> painel(@RequestParam String competencia) {
+    public ResponseEntity<List<MensalidadePainelDTO>> painel(@RequestParam String competencia) {
         return ResponseEntity.ok(consultarPainelFinanceiroUseCase.execute(competencia));
     }
 

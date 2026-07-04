@@ -36,6 +36,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login",
                                 "/api/auth/recuperar-senha", "/api/auth/definir-senha").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/professores").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.POST, "/api/professores").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.POST, "/api/turmas").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.PUT, "/api/turmas/**").hasRole("GESTAO")
@@ -45,6 +46,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/mensalidades").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.POST, "/api/mensalidades/**").hasRole("GESTAO")
                         .requestMatchers("/api/despesas/**").hasRole("GESTAO")
+                        .requestMatchers(HttpMethod.GET, "/api/semestres").hasAnyRole("GESTAO", "PROFESSOR")
                         .requestMatchers("/api/semestres/**").hasRole("GESTAO")
                         .requestMatchers("/api/chamadas/**").hasRole("PROFESSOR")
                         .requestMatchers("/api/notas/**").hasRole("PROFESSOR")
