@@ -17,6 +17,7 @@ import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadePainelDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarPainelFinanceiroUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.DarBaixaMensalidadeUseCase;
+import com.henrique.escolaidiomas.application.financeiro.usecase.EstornarBaixaMensalidadeUseCase;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +29,7 @@ public class MensalidadeController {
 
     private final ConsultarPainelFinanceiroUseCase consultarPainelFinanceiroUseCase;
     private final DarBaixaMensalidadeUseCase darBaixaMensalidadeUseCase;
+    private final EstornarBaixaMensalidadeUseCase estornarBaixaMensalidadeUseCase;
 
     /** RN-12: painel do mes com nomes de aluno/turma (ex.: ?competencia=2026-08). */
     @GetMapping
@@ -41,5 +43,11 @@ public class MensalidadeController {
             @PathVariable UUID id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataPagamento) {
         return ResponseEntity.ok(darBaixaMensalidadeUseCase.execute(id, dataPagamento));
+    }
+
+    /** US-14: estorna a baixa (volta a ABERTA/ATRASADA e limpa a data de pagamento). */
+    @PostMapping("/{id}/estornar")
+    public ResponseEntity<MensalidadeDTO> estornar(@PathVariable UUID id) {
+        return ResponseEntity.ok(estornarBaixaMensalidadeUseCase.execute(id));
     }
 }

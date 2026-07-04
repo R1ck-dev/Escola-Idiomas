@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.henrique.escolaidiomas.application.turma.dto.AtualizarTurmaInput;
 import com.henrique.escolaidiomas.application.turma.dto.CriarTurmaInput;
 import com.henrique.escolaidiomas.application.turma.dto.TurmaDTO;
+import com.henrique.escolaidiomas.application.turma.dto.TurmaPublicaDTO;
 import com.henrique.escolaidiomas.application.turma.usecase.AtualizarTurmaUseCase;
+import com.henrique.escolaidiomas.application.turma.usecase.BuscarTurmaPublicaUseCase;
 import com.henrique.escolaidiomas.application.turma.usecase.BuscarTurmaUseCase;
 import com.henrique.escolaidiomas.application.turma.usecase.CriarTurmaUseCase;
 import com.henrique.escolaidiomas.application.turma.usecase.ListarTurmasUseCase;
@@ -35,6 +37,7 @@ public class TurmaController {
     private final AtualizarTurmaUseCase atualizarTurmaUseCase;
     private final ListarTurmasUseCase listarTurmasUseCase;
     private final BuscarTurmaUseCase buscarTurmaUseCase;
+    private final BuscarTurmaPublicaUseCase buscarTurmaPublicaUseCase;
 
     /** Criacao pela gestao (protegido no SecurityConfig). */
     @PostMapping
@@ -54,6 +57,12 @@ public class TurmaController {
     @GetMapping("/{id}")
     public ResponseEntity<TurmaDTO> buscar(@PathVariable UUID id) {
         return ResponseEntity.ok(buscarTurmaUseCase.execute(id));
+    }
+
+    /** Visao publica para o banner da matricula (liberado no SecurityConfig; sem dados sensiveis). */
+    @GetMapping("/{id}/publica")
+    public ResponseEntity<TurmaPublicaDTO> buscarPublica(@PathVariable UUID id) {
+        return ResponseEntity.ok(buscarTurmaPublicaUseCase.execute(id));
     }
 
     /** Edicao pela gestao (protegido no SecurityConfig). */

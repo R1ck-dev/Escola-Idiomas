@@ -2,6 +2,7 @@ package com.henrique.escolaidiomas.infrastructure.persistence.financeiro.adapter
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -26,6 +27,11 @@ public class DespesaRepositoryAdapter implements DespesaRepository {
     }
 
     @Override
+    public Optional<Despesa> buscarPorId(UUID id) {
+        return jpaRepository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Despesa> listarPorPeriodo(LocalDate inicio, LocalDate fim) {
         return jpaRepository.findByDataBetweenOrderByDataAsc(inicio, fim).stream()
                 .map(mapper::toDomain).toList();
@@ -35,5 +41,10 @@ public class DespesaRepositoryAdapter implements DespesaRepository {
     public List<Despesa> listarPorProfessor(UUID professorId) {
         return jpaRepository.findByProfessorIdOrderByDataDesc(professorId).stream()
                 .map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public void excluir(UUID id) {
+        jpaRepository.deleteById(id);
     }
 }

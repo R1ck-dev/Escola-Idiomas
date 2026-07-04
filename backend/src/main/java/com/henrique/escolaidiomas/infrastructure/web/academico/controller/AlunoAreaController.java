@@ -14,7 +14,7 @@ import com.henrique.escolaidiomas.application.academico.usecase.ConsultarBoletim
 import com.henrique.escolaidiomas.application.academico.usecase.ListarTurmasDoAlunoUseCase;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarMensalidadesDoAlunoUseCase;
-import com.henrique.escolaidiomas.application.turma.dto.TurmaDTO;
+import com.henrique.escolaidiomas.application.turma.dto.TurmaDoAlunoDTO;
 import com.henrique.escolaidiomas.infrastructure.config.security.CurrentUserId;
 
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class AlunoAreaController {
     private final ConsultarMensalidadesDoAlunoUseCase consultarMensalidadesDoAlunoUseCase;
 
     @GetMapping("/turmas")
-    public ResponseEntity<List<TurmaDTO>> minhasTurmas(@CurrentUserId UUID alunoId) {
+    public ResponseEntity<List<TurmaDoAlunoDTO>> minhasTurmas(@CurrentUserId UUID alunoId) {
         return ResponseEntity.ok(listarTurmasDoAlunoUseCase.execute(alunoId));
     }
 

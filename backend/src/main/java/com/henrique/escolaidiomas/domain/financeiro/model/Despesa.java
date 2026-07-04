@@ -25,6 +25,17 @@ public class Despesa {
     public Despesa(UUID id, String descricao, CategoriaDespesa categoria, BigDecimal valor,
             LocalDate data, UUID professorId) {
         this.id = (id != null) ? id : UUID.randomUUID();
+        definir(descricao, categoria, valor, data, professorId);
+    }
+
+    /** Edicao da despesa (US-16): revalida os dados e substitui os campos. */
+    public void atualizar(String descricao, CategoriaDespesa categoria, BigDecimal valor,
+            LocalDate data, UUID professorId) {
+        definir(descricao, categoria, valor, data, professorId);
+    }
+
+    private void definir(String descricao, CategoriaDespesa categoria, BigDecimal valor,
+            LocalDate data, UUID professorId) {
         if (descricao == null || descricao.isBlank()) {
             throw new NegocioException("A descricao da despesa e' obrigatoria.");
         }
@@ -41,7 +52,7 @@ public class Despesa {
         this.categoria = categoria;
         this.valor = valor;
         this.data = (data != null) ? data : LocalDate.now();
-        this.professorId = professorId;
+        this.professorId = (categoria == CategoriaDespesa.REPASSE_PROFESSOR) ? professorId : null;
     }
 
     public UUID getId() {

@@ -88,6 +88,18 @@ public class Mensalidade {
         this.dataPagamento = (data != null) ? data : LocalDate.now();
     }
 
+    /**
+     * Estorna uma baixa (US-14): reverte o pagamento e limpa a data. Volta a ABERTA; a
+     * situacao ATRASADA/ABERTA passa a ser derivada de novo pelo vencimento (situacaoEm).
+     */
+    public void estornarBaixa() {
+        if (this.status != StatusMensalidade.PAGA) {
+            throw new NegocioException("So e' possivel estornar uma mensalidade paga.");
+        }
+        this.status = StatusMensalidade.ABERTA;
+        this.dataPagamento = null;
+    }
+
     /** Situacao para exibicao: PAGA/CANCELADA (armazenado) ou ATRASADA/ABERTA (derivado). */
     public StatusMensalidade situacaoEm(LocalDate hoje) {
         if (this.status == StatusMensalidade.PAGA || this.status == StatusMensalidade.CANCELADA) {

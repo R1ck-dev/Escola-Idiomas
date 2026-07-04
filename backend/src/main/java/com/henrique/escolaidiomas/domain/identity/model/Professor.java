@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.henrique.escolaidiomas.domain.identity.enums.Role;
 import com.henrique.escolaidiomas.domain.identity.enums.StatusUsuario;
+import com.henrique.escolaidiomas.domain.shared.NegocioException;
 
 /**
  * Professor (RN-04): cadastrado pela gestao. Guarda dados de contato e de
@@ -41,6 +42,22 @@ public class Professor extends Usuario {
         super(id, nome, email, senhaHash, status, role, criadoEm);
         this.cpf = cpf;
         this.rg = rg;
+        this.telefone = telefone;
+        this.chavePix = chavePix;
+        this.dadosBancarios = dadosBancarios;
+        this.idiomasHabilitados = idiomasHabilitados;
+    }
+
+    /**
+     * Edicao pela gestao (RN-04): atualiza contato e dados de repasse. Nao mexe no
+     * e-mail (identidade de login), CPF/RG nem no status/senha da conta.
+     */
+    public void atualizar(String nome, String telefone, String chavePix,
+            String dadosBancarios, String idiomasHabilitados) {
+        if (nome == null || nome.isBlank()) {
+            throw new NegocioException("O nome do professor e' obrigatorio.");
+        }
+        this.nome = nome;
         this.telefone = telefone;
         this.chavePix = chavePix;
         this.dadosBancarios = dadosBancarios;

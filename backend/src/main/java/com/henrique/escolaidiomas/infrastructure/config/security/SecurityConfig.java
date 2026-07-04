@@ -38,8 +38,14 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/professores").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.POST, "/api/professores").hasRole("GESTAO")
+                        .requestMatchers(HttpMethod.PUT, "/api/professores/*").hasRole("GESTAO")
+                        .requestMatchers(HttpMethod.POST, "/api/professores/*/reenviar-convite").hasRole("GESTAO")
+                        // A pagina de matricula publica le a turma sem autenticacao (banner) — antes das regras restritivas.
+                        .requestMatchers(HttpMethod.GET, "/api/turmas/*/publica").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/turmas").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.PUT, "/api/turmas/**").hasRole("GESTAO")
+                        // GET de turmas restrito a GESTAO/PROFESSOR (nunca ALUNO) — apos a rota publica.
+                        .requestMatchers(HttpMethod.GET, "/api/turmas", "/api/turmas/**").hasAnyRole("GESTAO", "PROFESSOR")
                         .requestMatchers(HttpMethod.POST, "/api/matriculas").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/matriculas").hasRole("GESTAO")
                         .requestMatchers("/api/matriculas/**").hasRole("GESTAO")
