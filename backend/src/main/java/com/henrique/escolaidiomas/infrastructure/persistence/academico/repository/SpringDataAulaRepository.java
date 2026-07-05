@@ -17,4 +17,6 @@ public interface SpringDataAulaRepository extends JpaRepository<AulaJpaEntity, U
     long countByTurmaIdAndSemestreId(UUID turmaId, UUID semestreId);
 
     List<AulaJpaEntity> findByTurmaIdAndSemestreIdOrderByDataAsc(UUID turmaId, UUID semestreId);
+
+    List<AulaJpaEntity> findByTurmaIdOrderByDataAsc(UUID turmaId);
 }

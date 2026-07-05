@@ -18,4 +18,7 @@ public interface AulaRepository {
     long contarPorTurmaESemestre(UUID turmaId, UUID semestreId);
 
     List<Aula> listarPorTurmaESemestre(UUID turmaId, UUID semestreId);
+
+    /** Todas as aulas ja abertas da turma (qualquer semestre), por data — navegacao da chamada. */
+    List<Aula> listarPorTurma(UUID turmaId);
 }

@@ -62,6 +62,8 @@ public class SecurityConfig {
                         // Busca de alunos (header da gestao): matcher de segmento unico, ANTES de /api/alunos/me/** (ALUNO).
                         .requestMatchers(HttpMethod.GET, "/api/alunos").hasRole("GESTAO")
                         .requestMatchers("/api/alunos/me/**").hasRole("ALUNO")
+                        // Detalhe do aluno (GET /api/alunos/{id}) — GESTAO. Apos /me/** para nao capturar a area do aluno.
+                        .requestMatchers(HttpMethod.GET, "/api/alunos/*").hasRole("GESTAO")
                         .requestMatchers("/jobs/**").permitAll()
                         .requestMatchers("/api/gestao/**").hasRole("GESTAO")
                         .anyRequest().authenticated()

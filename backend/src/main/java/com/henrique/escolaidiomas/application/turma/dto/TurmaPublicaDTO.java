@@ -8,7 +8,8 @@ import com.henrique.escolaidiomas.domain.turma.model.Turma;
 
 /**
  * Visao publica minima de uma turma para o banner da matricula publica (nao autenticada).
- * SEM dados sensiveis: nao expoe professor nem lotacao.
+ * SEM dados sensiveis: nao expoe professor nem os numeros de lotacao — apenas o
+ * sinalizador {@code turmaCheia} para a UI avisar sobre vagas esgotadas (RN-07).
  */
 public record TurmaPublicaDTO(
         UUID id,
@@ -18,9 +19,10 @@ public record TurmaPublicaDTO(
         String diasSemana,
         LocalTime horaInicio,
         LocalTime horaFim,
-        BigDecimal valorMensalidade
+        BigDecimal valorMensalidade,
+        boolean turmaCheia
 ) {
-    public static TurmaPublicaDTO de(Turma t) {
+    public static TurmaPublicaDTO de(Turma t, boolean turmaCheia) {
         return new TurmaPublicaDTO(
                 t.getId(),
                 t.getNome(),
@@ -29,6 +31,7 @@ public record TurmaPublicaDTO(
                 t.getDiasSemana(),
                 t.getHoraInicio(),
                 t.getHoraFim(),
-                t.getValorMensalidade());
+                t.getValorMensalidade(),
+                turmaCheia);
     }
 }

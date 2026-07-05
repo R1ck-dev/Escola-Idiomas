@@ -45,6 +45,9 @@ public class MatriculaEnricher {
         String alunoNome = null;
         String alunoEmail = null;
         String responsavelNome = null;
+        String responsavelCpf = null;
+        String responsavelTelefone = null;
+        String responsavelEmail = null;
         boolean menor = false;
 
         Usuario usuario = usuarioRepository.buscarPorId(m.getAlunoId()).orElse(null);
@@ -53,9 +56,13 @@ public class MatriculaEnricher {
             alunoEmail = aluno.getEmail();
             menor = aluno.isMenor();
             if (aluno.getResponsavelId() != null) {
-                responsavelNome = responsavelRepository.buscarPorId(aluno.getResponsavelId())
-                        .map(Responsavel::getNome)
-                        .orElse(null);
+                Responsavel resp = responsavelRepository.buscarPorId(aluno.getResponsavelId()).orElse(null);
+                if (resp != null) {
+                    responsavelNome = resp.getNome();
+                    responsavelCpf = resp.getCpf();
+                    responsavelTelefone = resp.getTelefone();
+                    responsavelEmail = resp.getEmail();
+                }
             }
         } else if (usuario != null) {
             alunoNome = usuario.getNome();
@@ -76,6 +83,9 @@ public class MatriculaEnricher {
                 m.getStatus(),
                 m.getMotivoRejeicao(),
                 menor,
-                responsavelNome);
+                responsavelNome,
+                responsavelCpf,
+                responsavelTelefone,
+                responsavelEmail);
     }
 }

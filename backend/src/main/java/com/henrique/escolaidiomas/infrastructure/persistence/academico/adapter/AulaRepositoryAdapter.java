@@ -46,4 +46,10 @@ public class AulaRepositoryAdapter implements AulaRepository {
         return jpaRepository.findByTurmaIdAndSemestreIdOrderByDataAsc(turmaId, semestreId).stream()
                 .map(mapper::toDomain).toList();
     }
+
+    @Override
+    public List<Aula> listarPorTurma(UUID turmaId) {
+        return jpaRepository.findByTurmaIdOrderByDataAsc(turmaId).stream()
+                .map(mapper::toDomain).toList();
+    }
 }
