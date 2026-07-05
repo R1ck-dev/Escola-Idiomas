@@ -50,10 +50,15 @@ public class SolicitarMatriculaUseCase {
             throw new NegocioException("O CPF do aluno e' obrigatorio.");
         }
 
-        // Reuso por CPF (RN-08): se ja existe aluno, usa o mesmo cadastro/conta.
+        // Reuso por CPF (RN-08): se ja existe aluno, usa o mesmo cadastro/conta. Mas
+        // nao aceita divergencia silenciosa: se o nome/e-mail digitados nao batem com o
+        // cadastro existente, avisa que o CPF ja pertence a outro aluno (evita que dados
+        // de uma pessoa diferente sejam descartados sem ninguem perceber).
         Aluno aluno = (Aluno) usuarioRepository.buscarAlunoPorCpf(dados.cpf()).orElse(null);
         if (aluno == null) {
             aluno = criarNovoAluno(dados, input.responsavel());
+        } else {
+            garantirMesmoAluno(aluno, dados);
         }
 
         if (matriculaRepository.existeAtivaOuPendente(aluno.getId(), turma.getId())) {
@@ -63,6 +68,29 @@ public class SolicitarMatriculaUseCase {
         Matricula matricula = matriculaRepository.salvar(
                 new Matricula(null, aluno.getId(), turma.getId(), LocalDate.now()));
         return MatriculaDTO.de(matricula);
+    }
+
+    /**
+     * RN-08: o mesmo aluno pode se matricular em varias turmas — reusamos o cadastro
+     * pelo CPF. Porem, se o nome ou e-mail informados divergem do cadastro existente,
+     * provavelmente e' um CPF digitado errado (ou de outra pessoa): recusamos com uma
+     * mensagem explicita em vez de silenciosamente ignorar os dados novos.
+     */
+    private void garantirMesmoAluno(Aluno existente, DadosAlunoInput dados) {
+        boolean nomeDiverge = dados.nome() != null && !dados.nome().isBlank()
+                && !normalizar(dados.nome()).equals(normalizar(existente.getNome()));
+        boolean emailDiverge = dados.email() != null && !dados.email().isBlank()
+                && !dados.email().trim().equalsIgnoreCase(existente.getEmail());
+        if (nomeDiverge || emailDiverge) {
+            throw new NegocioException(
+                    "Ja existe um aluno cadastrado com este CPF (" + existente.getNome() + "). "
+                            + "Se for voce, use exatamente o mesmo nome e e-mail do cadastro; "
+                            + "caso contrario, confira o CPF informado.");
+        }
+    }
+
+    private String normalizar(String valor) {
+        return valor.trim().toLowerCase();
     }
 
     private Aluno criarNovoAluno(DadosAlunoInput dados, DadosResponsavelInput respInput) {

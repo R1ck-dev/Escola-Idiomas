@@ -1,5 +1,6 @@
 package com.henrique.escolaidiomas.application.matricula.usecase;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -58,8 +59,11 @@ public class AprovarMatriculaUseCase {
             provisionarPrimeiroAcesso.execute(aluno);
         }
 
+        // RN-22/28: a pro-rata e' calculada e vence na EFETIVACAO (aprovacao), nao na
+        // solicitacao publica. Usar a data da solicitacao faria a mensalidade nascer
+        // vencida (com multa/mora) sempre que a aprovacao ocorresse dias depois.
         Mensalidade primeira = Mensalidade.primeira(
-                matricula.getId(), turma.getValorMensalidade(), matricula.getDataMatricula());
+                matricula.getId(), turma.getValorMensalidade(), LocalDate.now());
         mensalidadeRepository.salvar(primeira);
 
         matriculaRepository.salvar(matricula);
