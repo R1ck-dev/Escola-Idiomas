@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import type { ReactNode } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CheckCircle, XCircle } from '@phosphor-icons/react'
+import { CheckCircle, Warning, XCircle } from '@phosphor-icons/react'
 import { Logo } from '@/components/Logo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ import { toast } from '@/components/ui/toaster'
 import { mensagemErro } from '@/lib/api'
 import { formatBRL, formatHora } from '@/lib/format'
 import { solicitarMatricula, useTurmaPublica } from '@/api/matricula'
+import { maskCpf, maskRg, maskTelefone } from '@/lib/masks'
 import type { SolicitarMatriculaPayload, TurmaPublica } from '@/types/api'
 
 const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/
@@ -163,11 +164,23 @@ export default function MatriculaPublicaPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: valoresIniciais })
 
+  /** register + máscara: formata o valor no onChange antes de entregar ao react-hook-form. */
+  function comMascara(name: keyof FormValues, fn: (v: string) => string) {
+    const reg = register(name)
+    return {
+      ...reg,
+      onChange: (e: ChangeEvent<HTMLInputElement>) => {
+        e.target.value = fn(e.target.value)
+        return reg.onChange(e)
+      },
+    }
+  }
+
   const idade = calcularIdade(watch('dataNascimento'))
   const menor = idade !== null && idade < 18
 
   async function onSubmit(v: FormValues) {
-    if (!turmaId) return
+    if (!turmaId || turma?.turmaCheia) return
     setErroServidor(null)
     const payload: SolicitarMatriculaPayload = {
       turmaId,
@@ -213,6 +226,17 @@ export default function MatriculaPublicaPage() {
                 tintClass="bg-danger-bg"
                 title="Link de matrícula inválido"
                 description="Este link não indica a turma desejada. Peça à escola um novo link de matrícula para continuar."
+              />
+            </CardContent>
+          </Card>
+        ) : turma && turma.turmaCheia && !enviado ? (
+          <Card className="w-full max-w-[560px]">
+            <CardContent>
+              <EmptyState
+                icon={<Warning weight="fill" size={30} className="text-warning" />}
+                tintClass="bg-warning-bg"
+                title="Turma sem vagas no momento"
+                description={`A turma ${turma.nome} atingiu a lotação máxima. Fale com a secretaria da escola para entrar na lista de espera ou escolher outra turma.`}
               />
             </CardContent>
           </Card>
@@ -325,7 +349,7 @@ export default function MatriculaPublicaPage() {
                           inputMode="numeric"
                           placeholder="123.456.789-00"
                           invalid={!!errors.cpf}
-                          {...register('cpf')}
+                          {...comMascara('cpf', maskCpf)}
                         />
                       </Field>
 
@@ -335,12 +359,12 @@ export default function MatriculaPublicaPage() {
                           inputMode="tel"
                           placeholder="(11) 91234-5678"
                           invalid={!!errors.telefone}
-                          {...register('telefone')}
+                          {...comMascara('telefone', maskTelefone)}
                         />
                       </Field>
 
                       <Field label="RG (opcional)" htmlFor="rg" error={errors.rg?.message}>
-                        <Input id="rg" placeholder="00.000.000-0" invalid={!!errors.rg} {...register('rg')} />
+                        <Input id="rg" placeholder="00.000.000-0" invalid={!!errors.rg} {...comMascara('rg', maskRg)} />
                       </Field>
 
                       <Field label="Endereço" htmlFor="endereco" error={errors.endereco?.message}>
@@ -407,7 +431,7 @@ export default function MatriculaPublicaPage() {
                             inputMode="numeric"
                             placeholder="987.654.321-00"
                             invalid={!!errors.responsavelCpf}
-                            {...register('responsavelCpf')}
+                            {...comMascara('responsavelCpf', maskCpf)}
                           />
                         </Field>
 
@@ -421,7 +445,7 @@ export default function MatriculaPublicaPage() {
                             inputMode="tel"
                             placeholder="(11) 99876-5432"
                             invalid={!!errors.responsavelTelefone}
-                            {...register('responsavelTelefone')}
+                            {...comMascara('responsavelTelefone', maskTelefone)}
                           />
                         </Field>
 

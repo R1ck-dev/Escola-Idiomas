@@ -57,6 +57,7 @@ export interface TurmaPublica {
   horaInicio: string | null // "HH:mm:ss"
   horaFim: string | null
   valorMensalidade: number
+  turmaCheia: boolean
 }
 
 /** Turma do próprio aluno (GET /api/alunos/me/turmas): tem professorNome, NÃO tem ocupacaoAtual. */
@@ -184,6 +185,30 @@ export interface MatriculaDetalhada {
   motivoRejeicao: string | null
   menorIdade: boolean
   responsavelNome: string | null
+  responsavelCpf: string | null
+  responsavelTelefone: string | null
+  responsavelEmail: string | null
+}
+
+/** Detalhe do aluno para a gestão (GET /api/alunos/{id}): dados + turmas, mensalidades e boletim. */
+export interface AlunoDetalhe {
+  id: string
+  nome: string
+  email: string
+  cpf: string | null
+  rg: string | null
+  telefone: string | null
+  dataNascimento: string | null // "yyyy-MM-dd"
+  endereco: string | null
+  observacoes: string | null
+  menor: boolean
+  responsavelNome: string | null
+  responsavelCpf: string | null
+  responsavelTelefone: string | null
+  responsavelEmail: string | null
+  turmas: TurmaDoAluno[]
+  mensalidades: Mensalidade[]
+  boletins: Boletim[]
 }
 
 /** Linha do painel financeiro da gestão: mensalidade + nomes de aluno/turma. */

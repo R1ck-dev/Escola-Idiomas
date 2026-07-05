@@ -72,7 +72,7 @@ function MensalidadeHeroCard() {
           </div>
           <div>
             <p className="text-lg font-bold">Você está em dia!</p>
-            <p className="text-sm text-navy-300">Nenhuma mensalidade em aberto. 🎉</p>
+            <p className="text-sm text-navy-300">Nenhuma mensalidade em aberto.</p>
           </div>
         </div>
         <div className="mt-5 flex items-center gap-1 text-sm font-semibold" style={{ color: AMBER }}>

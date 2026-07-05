@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { CalendarBlank, Check, HandTap } from '@phosphor-icons/react'
+import { CalendarBlank, CaretLeft, CaretRight, Check, HandTap } from '@phosphor-icons/react'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,7 +9,7 @@ import { EmptyState, ErrorState } from '@/components/ui/states'
 import { toast } from '@/components/ui/toaster'
 import { formatDate } from '@/lib/format'
 import { mensagemErro } from '@/lib/api'
-import { useChamada, useMinhasTurmasProfessor, useRegistrarChamada } from '@/api/professor'
+import { useChamada, useDatasComChamada, useMinhasTurmasProfessor, useRegistrarChamada } from '@/api/professor'
 import { useProfessorHeader } from '@/layouts/ProfessorLayout'
 import type { Chamada } from '@/types/api'
 
@@ -73,9 +73,18 @@ export default function ChamadaPage() {
 
   const { data: turmas } = useMinhasTurmasProfessor()
   const { data: chamada, isLoading, isError, refetch } = useChamada(turmaId, data)
+  const { data: datasComChamada } = useDatasComChamada(turmaId)
   const registrar = useRegistrarChamada()
 
   const turmaNome = turmas?.find((t) => t.id === turmaId)?.nome
+
+  // Navegação entre os dias já com chamada (datas ISO ordenadas asc → comparação lexicográfica).
+  const datas = useMemo(() => datasComChamada ?? [], [datasComChamada])
+  const dataAnterior = useMemo(() => {
+    const anteriores = datas.filter((d) => d < data)
+    return anteriores.length ? anteriores[anteriores.length - 1] : null
+  }, [datas, data])
+  const dataProxima = useMemo(() => datas.find((d) => d > data) ?? null, [datas, data])
 
   // Marcações locais por matrícula. presente===null (aula ainda não criada) vira "presente" por padrão.
   const [marcacoes, setMarcacoes] = useState<Record<string, boolean>>({})
@@ -141,22 +150,52 @@ export default function ChamadaPage() {
           </SelectContent>
         </Select>
 
-        <label className="relative inline-flex h-[46px] items-center gap-2 rounded border-[1.5px] border-line bg-surface px-4 text-[15px] font-semibold text-ink">
-          <CalendarBlank size={18} className="text-ink-muted" />
-          <span className="tabular">
-            {ehHoje ? 'Hoje · ' : ''}
-            {formatDate(data)}
-          </span>
-          <input
-            type="date"
-            value={data}
-            max={hojeISO()}
-            onChange={(e) => setData(e.target.value)}
-            aria-label="Data da chamada"
-            className="absolute inset-0 cursor-pointer opacity-0"
-          />
-        </label>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="icon"
+            disabled={!dataAnterior}
+            onClick={() => dataAnterior && setData(dataAnterior)}
+            aria-label="Dia anterior com chamada"
+            title={dataAnterior ? `Ir para ${formatDate(dataAnterior)}` : 'Não há dia anterior com chamada'}
+          >
+            <CaretLeft size={18} weight="bold" />
+          </Button>
+
+          <label className="relative inline-flex h-[46px] items-center gap-2 rounded border-[1.5px] border-line bg-surface px-4 text-[15px] font-semibold text-ink">
+            <CalendarBlank size={18} className="text-ink-muted" />
+            <span className="tabular">
+              {ehHoje ? 'Hoje · ' : ''}
+              {formatDate(data)}
+            </span>
+            <input
+              type="date"
+              value={data}
+              max={hojeISO()}
+              onChange={(e) => setData(e.target.value)}
+              aria-label="Data da chamada"
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
+
+          <Button
+            variant="secondary"
+            size="icon"
+            disabled={!dataProxima}
+            onClick={() => dataProxima && setData(dataProxima)}
+            aria-label="Próximo dia com chamada"
+            title={dataProxima ? `Ir para ${formatDate(dataProxima)}` : 'Não há dia posterior com chamada'}
+          >
+            <CaretRight size={18} weight="bold" />
+          </Button>
+        </div>
       </div>
+
+      {turmaId && datas.length > 0 && (
+        <p className="mb-4 text-[13px] text-ink-muted">
+          {datas.length === 1 ? '1 dia com chamada registrada' : `${datas.length} dias com chamada registrada`} — use ◀ ▶ para revisar/corrigir.
+        </p>
+      )}
 
       {!turmaId ? (
         <EmptyState

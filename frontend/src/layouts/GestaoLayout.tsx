@@ -138,8 +138,8 @@ function Dropdown({ className, children }: { className?: string; children: React
 }
 
 /**
- * Busca de aluno do cabeçalho: input com debounce + dropdown que apenas LISTA os
- * alunos encontrados (nome/e-mail). Não há tela de detalhe para onde navegar.
+ * Busca de aluno do cabeçalho: input com debounce + dropdown com os alunos
+ * encontrados (nome/e-mail). Cada resultado leva ao detalhe do aluno.
  */
 function BuscaAlunos() {
   const [termo, setTermo] = useState('')
@@ -182,12 +182,21 @@ function BuscaAlunos() {
           ) : (
             <ul className="max-h-80 overflow-y-auto py-1.5">
               {resultados.map((a) => (
-                <li key={a.id} className="flex items-center gap-3 px-3 py-2">
-                  <Avatar nome={a.nome} tint className="size-8 text-[12px]" />
-                  <div className="min-w-0">
-                    <div className="truncate text-[14px] font-medium text-ink">{a.nome}</div>
-                    <div className="truncate text-[12.5px] text-ink-muted">{a.email}</div>
-                  </div>
+                <li key={a.id}>
+                  <Link
+                    to={`/gestao/alunos/${a.id}`}
+                    onClick={() => {
+                      setAberto(false)
+                      setTermo('')
+                    }}
+                    className="flex items-center gap-3 px-3 py-2 transition hover:bg-navy-50"
+                  >
+                    <Avatar nome={a.nome} tint className="size-8 text-[12px]" />
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-medium text-ink">{a.nome}</div>
+                      <div className="truncate text-[12.5px] text-ink-muted">{a.email}</div>
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
+  AlunoDetalhe,
   AtualizarProfessorPayload,
   AtualizarTurmaPayload,
   CadastrarProfessorPayload,
@@ -52,6 +53,15 @@ export function useBuscarAlunos(termo: string) {
       (await api.get<AlunoBusca[]>('/api/alunos', { params: { q: termo || undefined } })).data,
     enabled: termo.trim().length >= 2,
     placeholderData: keepPreviousData,
+  })
+}
+
+/** Detalhe do aluno (GET /api/alunos/{id}) — dados, turmas, mensalidades e boletim. */
+export function useAlunoDetalhe(id: string | undefined) {
+  return useQuery({
+    queryKey: ['gestao', 'aluno-detalhe', id],
+    queryFn: async () => (await api.get<AlunoDetalhe>(`/api/alunos/${id}`)).data,
+    enabled: !!id,
   })
 }
 

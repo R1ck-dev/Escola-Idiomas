@@ -27,6 +27,7 @@ import ProfessorBoletimPage from '@/pages/professor/ProfessorBoletimPage'
 
 import GestaoInicioPage from '@/pages/gestao/GestaoInicioPage'
 import GestaoMatriculasPage from '@/pages/gestao/GestaoMatriculasPage'
+import GestaoAlunoDetalhePage from '@/pages/gestao/GestaoAlunoDetalhePage'
 import GestaoTurmasPage from '@/pages/gestao/GestaoTurmasPage'
 import GestaoProfessoresPage from '@/pages/gestao/GestaoProfessoresPage'
 import GestaoFinanceiroPage from '@/pages/gestao/GestaoFinanceiroPage'
@@ -96,6 +97,7 @@ export default function App() {
         <Route element={<GestaoLayout />}>
           <Route path="/gestao" element={<GestaoInicioPage />} />
           <Route path="/gestao/matriculas" element={<GestaoMatriculasPage />} />
+          <Route path="/gestao/alunos/:id" element={<GestaoAlunoDetalhePage />} />
           <Route path="/gestao/turmas" element={<GestaoTurmasPage />} />
           <Route path="/gestao/professores" element={<GestaoProfessoresPage />} />
           <Route path="/gestao/financeiro" element={<GestaoFinanceiroPage />} />

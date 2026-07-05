@@ -173,15 +173,53 @@ function AcoesLinha({
   return <div className="text-right text-sm text-ink-subtle">—</div>
 }
 
-/** Célula Responsável: nome do responsável + selo "menor" quando aplicável. */
-function CelulaResponsavel({ m }: { m: MatriculaDetalhada }) {
-  if (!m.menorIdade) return <span className="text-ink-subtle">—</span>
+/** Linha rótulo/valor dos dados do responsável (mostra "—" quando ausente). */
+function LinhaInfo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-ink">{m.responsavelNome ?? '—'}</span>
-      <Badge tone="neutralAlt" dot={false} className="px-2 py-0.5 text-[11px]">
-        menor
-      </Badge>
+    <div className="flex items-baseline gap-2">
+      <dt className="w-16 shrink-0 text-ink-subtle">{rotulo}</dt>
+      <dd className="min-w-0 break-words text-ink">{valor || '—'}</dd>
+    </div>
+  )
+}
+
+/**
+ * Responsável (quando menor): nome clicável que expande os dados de contato
+ * (CPF, telefone, e-mail). Fora do caso "menor", mostra "—".
+ */
+function ResponsavelDetalhes({ m }: { m: MatriculaDetalhada }) {
+  const [aberto, setAberto] = useState(false)
+  if (!m.menorIdade) return <span className="text-ink-subtle">—</span>
+  const semContato = !m.responsavelCpf && !m.responsavelTelefone && !m.responsavelEmail
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          aria-expanded={aberto}
+          className="inline-flex items-center gap-1 font-medium text-ink transition hover:text-brand"
+        >
+          <CaretRight size={13} weight="bold" className={cn('transition-transform', aberto && 'rotate-90')} />
+          <span className="underline-offset-2 hover:underline">{m.responsavelNome ?? 'Responsável'}</span>
+        </button>
+        <Badge tone="neutralAlt" dot={false} className="px-2 py-0.5 text-[11px]">
+          menor
+        </Badge>
+      </div>
+      {aberto && (
+        <dl className="ml-[18px] flex flex-col gap-1 rounded-lg bg-canvas px-3 py-2 text-[13px]">
+          {semContato ? (
+            <span className="text-ink-subtle">Sem dados de contato cadastrados.</span>
+          ) : (
+            <>
+              <LinhaInfo rotulo="CPF" valor={m.responsavelCpf} />
+              <LinhaInfo rotulo="Telefone" valor={m.responsavelTelefone} />
+              <LinhaInfo rotulo="E-mail" valor={m.responsavelEmail} />
+            </>
+          )}
+        </dl>
+      )}
     </div>
   )
 }
@@ -208,7 +246,6 @@ function CardSolicitacao({
   const meta = [
     turma?.nome ?? m.turmaNome ?? 'Turma —',
     `solicitado em ${formatDate(m.dataMatricula)}`,
-    ...(m.menorIdade ? [`menor — responsável: ${m.responsavelNome ?? '—'}`] : []),
   ].join(' · ')
 
   return (
@@ -233,6 +270,11 @@ function CardSolicitacao({
           </div>
           {m.alunoEmail && <p className="mt-1 text-[13px] text-ink-subtle">{m.alunoEmail}</p>}
           <p className="mt-1 text-sm text-ink-muted">{meta}</p>
+          {m.menorIdade && (
+            <div className="mt-2 text-[13px]">
+              <ResponsavelDetalhes m={m} />
+            </div>
+          )}
         </div>
 
         <div className="flex shrink-0 gap-2">
@@ -482,7 +524,7 @@ export default function GestaoMatriculasPage() {
                   <TD className="text-ink-muted">{m.turmaNome ?? '—'}</TD>
                   <TD className="whitespace-nowrap tabular text-ink-muted">{formatDate(m.dataMatricula)}</TD>
                   <TD>
-                    <CelulaResponsavel m={m} />
+                    <ResponsavelDetalhes m={m} />
                   </TD>
                   <TD>
                     <Badge tone={s.tone}>{s.label}</Badge>

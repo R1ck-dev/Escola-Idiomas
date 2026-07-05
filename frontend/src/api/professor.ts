@@ -39,6 +39,16 @@ export function useChamada(turmaId: string | undefined, data?: string) {
   })
 }
 
+/** Datas que já têm chamada aberta na turma (para navegar ◀/▶ entre os dias dados). */
+export function useDatasComChamada(turmaId: string | undefined) {
+  return useQuery({
+    queryKey: ['professor', 'chamada-datas', turmaId],
+    queryFn: async () =>
+      (await api.get<string[]>('/api/chamadas/datas', { params: { turmaId } })).data,
+    enabled: !!turmaId,
+  })
+}
+
 export function useRegistrarChamada() {
   const qc = useQueryClient()
   return useMutation({
@@ -46,6 +56,8 @@ export function useRegistrarChamada() {
       (await api.post<Chamada>('/api/chamadas', payload)).data,
     onSuccess: (_res, payload) => {
       qc.invalidateQueries({ queryKey: ['professor', 'chamada', payload.turmaId] })
+      // Uma nova data (1ª chamada do dia) passa a existir na navegação.
+      qc.invalidateQueries({ queryKey: ['professor', 'chamada-datas', payload.turmaId] })
     },
   })
 }
