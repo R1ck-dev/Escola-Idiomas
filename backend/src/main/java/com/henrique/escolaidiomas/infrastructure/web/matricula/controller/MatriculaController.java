@@ -1,8 +1,8 @@
 package com.henrique.escolaidiomas.infrastructure.web.matricula.controller;
 
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +18,7 @@ import com.henrique.escolaidiomas.application.matricula.dto.DadosResponsavelInpu
 import com.henrique.escolaidiomas.application.matricula.dto.MatriculaDTO;
 import com.henrique.escolaidiomas.application.matricula.dto.MatriculaDetalhadaDTO;
 import com.henrique.escolaidiomas.application.matricula.dto.SolicitarMatriculaInput;
+import com.henrique.escolaidiomas.application.shared.dto.PaginaDTO;
 import com.henrique.escolaidiomas.application.matricula.usecase.AprovarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.BuscarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.EncerrarMatriculaUseCase;
@@ -62,10 +63,17 @@ public class MatriculaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(solicitarMatriculaUseCase.execute(input));
     }
 
-    /** GESTAO (US-05): lista matriculas (com nomes de aluno/turma), opcionalmente por status. */
+    /**
+     * GESTAO (US-05): lista matriculas paginadas (com nomes de aluno/turma), opcionalmente
+     * filtrando por status e/ou por um termo {@code q} (nome ou e-mail do aluno).
+     */
     @GetMapping
-    public ResponseEntity<List<MatriculaDetalhadaDTO>> listar(@RequestParam(required = false) StatusMatricula status) {
-        return ResponseEntity.ok(listarMatriculasUseCase.execute(status));
+    public ResponseEntity<PaginaDTO<MatriculaDetalhadaDTO>> listar(
+            @RequestParam(required = false) StatusMatricula status,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(listarMatriculasUseCase.execute(status, q, PageRequest.of(page, size)));
     }
 
     /** GESTAO: detalhe de uma matricula com nomes resolvidos. */

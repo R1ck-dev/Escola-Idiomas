@@ -52,12 +52,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/mensalidades").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.POST, "/api/mensalidades/**").hasRole("GESTAO")
                         .requestMatchers("/api/despesas/**").hasRole("GESTAO")
-                        .requestMatchers(HttpMethod.GET, "/api/semestres").hasAnyRole("GESTAO", "PROFESSOR")
+                        // Semestre e' dado de referencia: ALUNO le a lista (seletor do boletim). Escrita segue GESTAO.
+                        .requestMatchers(HttpMethod.GET, "/api/semestres").hasAnyRole("GESTAO", "PROFESSOR", "ALUNO")
                         .requestMatchers("/api/semestres/**").hasRole("GESTAO")
                         .requestMatchers("/api/chamadas/**").hasRole("PROFESSOR")
                         .requestMatchers("/api/notas/**").hasRole("PROFESSOR")
                         .requestMatchers("/api/boletins/**").hasAnyRole("GESTAO", "PROFESSOR")
                         .requestMatchers("/api/professores/me/**").hasRole("PROFESSOR")
+                        // Busca de alunos (header da gestao): matcher de segmento unico, ANTES de /api/alunos/me/** (ALUNO).
+                        .requestMatchers(HttpMethod.GET, "/api/alunos").hasRole("GESTAO")
                         .requestMatchers("/api/alunos/me/**").hasRole("ALUNO")
                         .requestMatchers("/jobs/**").permitAll()
                         .requestMatchers("/api/gestao/**").hasRole("GESTAO")

@@ -22,4 +22,18 @@ public interface UsuarioRepository {
 
     /** Usuarios de um perfil (ex.: destinatarios GESTAO do alerta de inadimplencia — RN-29). */
     List<Usuario> listarPorRole(Role role);
+
+    /**
+     * Busca alunos cujo nome OU e-mail contenham o termo (case-insensitive), ordenados por nome
+     * e limitados a {@code limite}. Termo nulo retorna os primeiros alunos por nome
+     * (seletor/busca de aluno no header da gestao).
+     */
+    List<Usuario> buscarAlunosPorTermo(String termo, int limite);
+
+    /**
+     * IDs de todos os alunos cujo nome OU e-mail contenham o termo (case-insensitive). Usado
+     * para resolver o filtro textual da gestao antes de paginar as matriculas (contextos
+     * desacoplados: a matricula so guarda o id do aluno). Sem limite para nao perder resultados.
+     */
+    List<UUID> buscarIdsAlunosPorTermo(String termo);
 }

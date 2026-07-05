@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import com.henrique.escolaidiomas.domain.identity.enums.Role;
@@ -54,5 +55,16 @@ public class UsuarioRepositoryAdapter implements UsuarioRepository {
     @Override
     public List<Usuario> listarPorRole(Role role) {
         return springDataUsuarioRepository.findByRole(role).stream().map(usuarioMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Usuario> buscarAlunosPorTermo(String termo, int limite) {
+        return springDataAlunoRepository.buscarPorTermo(termo, PageRequest.of(0, limite))
+                .stream().map(usuarioMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<UUID> buscarIdsAlunosPorTermo(String termo) {
+        return springDataAlunoRepository.buscarIdsPorTermo(termo);
     }
 }

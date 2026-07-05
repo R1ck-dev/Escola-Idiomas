@@ -1,14 +1,18 @@
 package com.henrique.escolaidiomas.infrastructure.persistence.matricula.adapter;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import com.henrique.escolaidiomas.domain.matricula.enums.StatusMatricula;
 import com.henrique.escolaidiomas.domain.matricula.model.Matricula;
 import com.henrique.escolaidiomas.domain.matricula.port.MatriculaRepository;
+import com.henrique.escolaidiomas.infrastructure.persistence.matricula.entity.MatriculaJpaEntity;
 import com.henrique.escolaidiomas.infrastructure.persistence.matricula.mapper.MatriculaMapper;
 import com.henrique.escolaidiomas.infrastructure.persistence.matricula.repository.SpringDataMatriculaRepository;
 
@@ -39,6 +43,14 @@ public class MatriculaRepositoryAdapter implements MatriculaRepository {
     @Override
     public List<Matricula> listarPorStatus(StatusMatricula status) {
         return jpaRepository.findByStatus(status).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public Page<Matricula> buscar(StatusMatricula status, Collection<UUID> alunoIds, Pageable pageable) {
+        Page<MatriculaJpaEntity> pagina = (alunoIds == null)
+                ? jpaRepository.buscar(status, pageable)
+                : jpaRepository.buscarPorAlunoIds(status, alunoIds, pageable);
+        return pagina.map(mapper::toDomain);
     }
 
     @Override

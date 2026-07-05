@@ -1,9 +1,9 @@
 package com.henrique.escolaidiomas.infrastructure.web.financeiro.controller;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +18,8 @@ import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadePainelDT
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarPainelFinanceiroUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.DarBaixaMensalidadeUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.EstornarBaixaMensalidadeUseCase;
+import com.henrique.escolaidiomas.application.shared.dto.PaginaDTO;
+import com.henrique.escolaidiomas.domain.financeiro.enums.StatusMensalidade;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,10 +33,18 @@ public class MensalidadeController {
     private final DarBaixaMensalidadeUseCase darBaixaMensalidadeUseCase;
     private final EstornarBaixaMensalidadeUseCase estornarBaixaMensalidadeUseCase;
 
-    /** RN-12: painel do mes com nomes de aluno/turma (ex.: ?competencia=2026-08). */
+    /**
+     * RN-12: painel paginado do mes com nomes de aluno/turma (ex.: ?competencia=2026-08),
+     * opcionalmente filtrado por {@code situacao} (ABERTA/ATRASADA/PAGA/CANCELADA).
+     */
     @GetMapping
-    public ResponseEntity<List<MensalidadePainelDTO>> painel(@RequestParam String competencia) {
-        return ResponseEntity.ok(consultarPainelFinanceiroUseCase.execute(competencia));
+    public ResponseEntity<PaginaDTO<MensalidadePainelDTO>> painel(
+            @RequestParam String competencia,
+            @RequestParam(required = false) StatusMensalidade situacao,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(
+                consultarPainelFinanceiroUseCase.execute(competencia, situacao, PageRequest.of(page, size)));
     }
 
     /** US-14: baixa manual (dataPagamento opcional; default hoje). */
