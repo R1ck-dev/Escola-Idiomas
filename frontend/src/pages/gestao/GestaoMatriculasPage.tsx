@@ -1,17 +1,23 @@
 import * as React from 'react'
 import { useState } from 'react'
 import {
+  CaretLeft,
+  CaretRight,
   Check,
   ClipboardText,
   Confetti,
   Info,
   Lock,
+  MagnifyingGlass,
   Prohibit,
   WarningCircle,
   XCircle,
 } from '@phosphor-icons/react'
+import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogBody,
@@ -34,12 +40,13 @@ import {
   useMatriculas,
   useRejeitarMatricula,
   useTrancarMatricula,
+  useTurmasGestao,
 } from '@/api/gestao'
 import { mensagemErro } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import { statusMatricula } from '@/lib/status'
 import { cn } from '@/lib/utils'
-import type { MatriculaDetalhada, StatusMatricula } from '@/types/api'
+import type { MatriculaDetalhada, StatusMatricula, TurmaGestao } from '@/types/api'
 
 type Filtro = 'TODAS' | StatusMatricula
 type AcaoTipo = 'aprovar' | 'rejeitar' | 'trancar' | 'encerrar'
@@ -52,6 +59,36 @@ const TABS: { value: Filtro; label: string }[] = [
   { value: 'ENCERRADA', label: 'Encerrada' },
   { value: 'REJEITADA', label: 'Rejeitada' },
 ]
+
+/** Valor com atraso de `delay`ms — debounce simples para a busca. */
+function useDebounced<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value)
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(t)
+  }, [value, delay])
+  return debounced
+}
+
+/** Controles Anterior/Próxima + "Página X de Y" (índice 0-based). Some com página única. */
+function Paginacao({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
+  if (totalPages <= 1) return null
+  return (
+    <div className="flex items-center justify-between gap-3 pt-1">
+      <Button variant="secondary" size="row" disabled={page <= 0} onClick={() => onPage(page - 1)}>
+        <CaretLeft size={16} weight="bold" />
+        Anterior
+      </Button>
+      <span className="tabular text-[13px] text-ink-muted">
+        Página {page + 1} de {totalPages}
+      </span>
+      <Button variant="secondary" size="row" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}>
+        Próxima
+        <CaretRight size={16} weight="bold" />
+      </Button>
+    </div>
+  )
+}
 
 /** Título + rótulo do botão de confirmação de cada ação, com o nome do aluno. */
 function textoAcao(tipo: AcaoTipo, nome: string): {
@@ -149,15 +186,120 @@ function CelulaResponsavel({ m }: { m: MatriculaDetalhada }) {
   )
 }
 
+/**
+ * Card de revisão de uma solicitação (aba "Aguardando"): dados do aluno para revisão
+ * (nome, e-mail), turma pretendida, data da solicitação e responsável quando menor —
+ * mais as ações Aprovar/Rejeitar. Quando a turma pretendida está sem vagas, sinaliza
+ * (borda âmbar + badge "Turma cheia") e desabilita o Aprovar.
+ */
+function CardSolicitacao({
+  m,
+  turma,
+  onAcao,
+}: {
+  m: MatriculaDetalhada
+  turma: TurmaGestao | undefined
+  onAcao: (tipo: AcaoTipo, m: MatriculaDetalhada) => void
+}) {
+  const s = statusMatricula[m.status]
+  const nome = m.alunoNome ?? 'Aluno'
+  const cheia = turma ? turma.ocupacaoAtual >= turma.lotacaoMaxima : false
+
+  const meta = [
+    turma?.nome ?? m.turmaNome ?? 'Turma —',
+    `solicitado em ${formatDate(m.dataMatricula)}`,
+    ...(m.menorIdade ? [`menor — responsável: ${m.responsavelNome ?? '—'}`] : []),
+  ].join(' · ')
+
+  return (
+    <Card
+      className={cn(
+        'flex flex-col gap-4 p-5',
+        cheia && 'border-[1.5px] border-[#F0D3AE] bg-warning-bg/40',
+      )}
+    >
+      <div className="flex flex-wrap items-start gap-4">
+        <Avatar nome={nome} tint className="size-[52px] text-base" />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <h3 className="text-[17px] font-bold leading-tight text-ink">{nome}</h3>
+            <Badge tone={s.tone}>{s.label}</Badge>
+            {cheia && (
+              <Badge tone="warning" icon={<WarningCircle weight="fill" />}>
+                Turma cheia
+              </Badge>
+            )}
+          </div>
+          {m.alunoEmail && <p className="mt-1 text-[13px] text-ink-subtle">{m.alunoEmail}</p>}
+          <p className="mt-1 text-sm text-ink-muted">{meta}</p>
+        </div>
+
+        <div className="flex shrink-0 gap-2">
+          <Button
+            variant="ghost"
+            size="row"
+            className="text-danger hover:text-danger"
+            onClick={() => onAcao('rejeitar', m)}
+          >
+            <XCircle size={16} weight="bold" />
+            Rejeitar
+          </Button>
+          <Button
+            variant="primary"
+            size="row"
+            disabled={cheia}
+            title={cheia ? 'Turma sem vagas — libere uma vaga ou realoque para aprovar.' : undefined}
+            onClick={() => onAcao('aprovar', m)}
+          >
+            <Check size={16} weight="bold" />
+            Aprovar
+          </Button>
+        </div>
+      </div>
+
+      {cheia && turma && (
+        <div className="flex items-start gap-2 rounded-xl bg-warning-bg px-3.5 py-2.5 text-[13px] leading-relaxed text-[#C8461F]">
+          <WarningCircle size={17} weight="fill" className="mt-px shrink-0" />
+          <span>
+            Turma sem vagas ({turma.ocupacaoAtual}/{turma.lotacaoMaxima}) — libere uma vaga ou
+            realoque o aluno antes de aprovar.
+          </span>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export default function GestaoMatriculasPage() {
   const [filtro, setFiltro] = useState<Filtro>('TODAS')
+  const [busca, setBusca] = useState('')
+  const [page, setPage] = useState(0)
   const [acao, setAcao] = useState<{ tipo: AcaoTipo; m: MatriculaDetalhada } | null>(null)
   const [motivo, setMotivo] = useState('')
   const [motivoErro, setMotivoErro] = useState<string | null>(null)
 
-  // Query filtrada (tabela) + lista completa para as contagens das abas.
-  const { data, isLoading, isError, refetch } = useMatriculas(filtro === 'TODAS' ? undefined : filtro)
-  const todas = useMatriculas().data ?? []
+  const q = useDebounced(busca.trim(), 300)
+
+  // Nova busca (com debounce) volta à primeira página.
+  React.useEffect(() => {
+    setPage(0)
+  }, [q])
+
+  // Página filtrada da lista de matrículas. Contagens vêm de data.totalElements, não do content.
+  const { data, isLoading, isError, refetch } = useMatriculas({
+    status: filtro === 'TODAS' ? undefined : filtro,
+    q: q || undefined,
+    page,
+  })
+
+  // Ocupação das turmas para sinalizar "turma cheia" na revisão (join por turmaId).
+  const { data: turmas } = useTurmasGestao()
+  const turmaPorId = React.useMemo(() => {
+    const mapa = new Map<string, TurmaGestao>()
+    for (const t of turmas ?? []) mapa.set(t.id, t)
+    return mapa
+  }, [turmas])
 
   const aprovar = useAprovarMatricula()
   const rejeitar = useRejeitarMatricula()
@@ -165,10 +307,22 @@ export default function GestaoMatriculasPage() {
   const encerrar = useEncerrarMatricula()
   const pending = aprovar.isPending || rejeitar.isPending || trancar.isPending || encerrar.isPending
 
-  const lista = data ?? []
+  const lista = data?.content ?? []
+  const total = data?.totalElements ?? 0
+  const isAguardando = filtro === 'AGUARDANDO_APROVACAO'
 
-  const contagem = (t: Filtro): number =>
-    t === 'TODAS' ? todas.length : todas.filter((m) => m.status === t).length
+  // Se a página atual ficou fora do intervalo (ex.: última linha aprovada), volta para a última válida.
+  React.useEffect(() => {
+    if (data && data.totalPages > 0 && page > data.totalPages - 1) {
+      setPage(data.totalPages - 1)
+    }
+  }, [data, page])
+
+  // Troca de aba: aplica o filtro e reseta a página.
+  function trocarFiltro(v: Filtro) {
+    setFiltro(v)
+    setPage(0)
+  }
 
   function abrir(tipo: AcaoTipo, m: MatriculaDetalhada) {
     setMotivo('')
@@ -222,23 +376,40 @@ export default function GestaoMatriculasPage() {
         </p>
       </header>
 
-      <Tabs value={filtro} onValueChange={(v) => setFiltro(v as Filtro)}>
+      <div className="relative w-full sm:max-w-sm">
+        <MagnifyingGlass
+          size={18}
+          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-subtle"
+        />
+        <Input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome ou e-mail do aluno…"
+          aria-label="Buscar aluno"
+          className="pl-10"
+        />
+      </div>
+
+      <Tabs value={filtro} onValueChange={(v) => trocarFiltro(v as Filtro)}>
         <div className="overflow-x-auto pb-1">
           <TabsList>
             {TABS.map((t) => {
-              const n = contagem(t.value)
-              const destaque = t.value === 'AGUARDANDO_APROVACAO' && n > 0
+              const ativo = t.value === filtro
+              // Só a aba ativa exibe contagem (via totalElements) — contar as inativas exigiria N queries.
+              const destaque = ativo && t.value === 'AGUARDANDO_APROVACAO' && total > 0
               return (
                 <TabsTrigger key={t.value} value={t.value}>
                   {t.label}
-                  <span
-                    className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular',
-                      destaque ? 'bg-accent text-ink' : 'bg-navy-50 text-ink-muted',
-                    )}
-                  >
-                    {n}
-                  </span>
+                  {ativo && data && (
+                    <span
+                      className={cn(
+                        'rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular',
+                        destaque ? 'bg-accent text-ink' : 'bg-navy-50 text-ink-muted',
+                      )}
+                    >
+                      {total}
+                    </span>
+                  )}
                 </TabsTrigger>
               )
             })}
@@ -247,7 +418,7 @@ export default function GestaoMatriculasPage() {
       </Tabs>
 
       {isLoading ? (
-        <LoadingRows rows={6} />
+        <LoadingRows rows={isAguardando ? 3 : 6} />
       ) : isError ? (
         <ErrorState
           title="Não foi possível carregar as matrículas"
@@ -255,7 +426,7 @@ export default function GestaoMatriculasPage() {
           onRetry={() => refetch()}
         />
       ) : lista.length === 0 ? (
-        filtro === 'AGUARDANDO_APROVACAO' ? (
+        isAguardando ? (
           <EmptyState
             icon={<Confetti size={30} className="text-success-dark" />}
             title="Nenhuma solicitação aguardando"
@@ -270,6 +441,18 @@ export default function GestaoMatriculasPage() {
             tintClass="bg-navy-50"
           />
         )
+      ) : isAguardando ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-ink-muted">
+            {total === 1 ? '1 pessoa quer' : `${total} pessoas querem`} entrar. Revise
+            os dados e aprove ou rejeite — o solicitante recebe um e-mail em qualquer caso.
+          </p>
+          <div className="flex flex-col gap-3">
+            {lista.map((m) => (
+              <CardSolicitacao key={m.id} m={m} turma={turmaPorId.get(m.turmaId)} onAcao={abrir} />
+            ))}
+          </div>
+        </div>
       ) : (
         <Table>
           <THead>
@@ -312,6 +495,10 @@ export default function GestaoMatriculasPage() {
             })}
           </TBody>
         </Table>
+      )}
+
+      {!isLoading && !isError && lista.length > 0 && (
+        <Paginacao page={data?.page ?? 0} totalPages={data?.totalPages ?? 1} onPage={setPage} />
       )}
 
       <Dialog open={!!acao} onOpenChange={(o) => !o && fechar()}>

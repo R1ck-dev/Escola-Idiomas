@@ -10,15 +10,15 @@ import type { BadgeTone } from '@/components/ui/badge'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
-  Dialog,
-  DialogBody,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { toast } from '@/components/ui/toaster'
 import { formatDate } from '@/lib/format'
@@ -89,7 +89,7 @@ type FormValues = z.infer<typeof schema>
 
 const valoresIniciais: FormValues = { referencia: '', dataInicio: '', dataFim: '' }
 
-function NovoSemestreDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function NovoSemestreSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const criar = useCriarSemestre()
   const {
     register,
@@ -118,14 +118,14 @@ function NovoSemestreDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Novo semestre</DialogTitle>
-          <DialogDescription>Defina o período letivo.</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Novo semestre</SheetTitle>
+          <SheetDescription>Defina o período letivo.</SheetDescription>
+        </SheetHeader>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <DialogBody className="flex flex-col gap-4">
+          <SheetBody className="flex flex-col gap-4">
             <Field label="Referência" htmlFor="referencia" required hint="ex.: 2026-2" error={errors.referencia?.message}>
               <Input
                 id="referencia"
@@ -149,20 +149,20 @@ function NovoSemestreDialog({ open, onOpenChange }: { open: boolean; onOpenChang
               <Info weight="fill" size={16} className="mt-0.5 shrink-0 text-info" />
               <span>Chamadas, notas e boletins ficam vinculados a este semestre.</span>
             </div>
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose asChild>
+          </SheetBody>
+          <SheetFooter>
+            <SheetClose asChild>
               <Button type="button" variant="secondary">
                 Cancelar
               </Button>
-            </DialogClose>
+            </SheetClose>
             <Button type="submit" variant="primary" loading={criar.isPending}>
               Criar semestre
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -227,7 +227,7 @@ export default function GestaoSemestresPage() {
         )}
       </div>
 
-      <NovoSemestreDialog open={open} onOpenChange={setOpen} />
+      <NovoSemestreSheet open={open} onOpenChange={setOpen} />
     </>
   )
 }

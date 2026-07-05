@@ -1,25 +1,26 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Books, Clock, Info, LinkSimple, PencilSimple, Plus, User } from '@phosphor-icons/react'
+import { Books, Clock, Info, LinkSimple, MagnifyingGlass, PencilSimple, Plus, User } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  Dialog,
-  DialogBody,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { ToggleChips } from '@/components/ui/toggle-chips'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/states'
 import { toast } from '@/components/ui/toaster'
@@ -102,6 +103,16 @@ function toDefaults(turma: TurmaGestao | null): FormValues {
   }
 }
 
+const DIAS_SEMANA = [
+  { value: 'SEG', label: 'Seg' },
+  { value: 'TER', label: 'Ter' },
+  { value: 'QUA', label: 'Qua' },
+  { value: 'QUI', label: 'Qui' },
+  { value: 'SEX', label: 'Sex' },
+  { value: 'SAB', label: 'Sáb' },
+  { value: 'DOM', label: 'Dom' },
+]
+
 function TurmaForm({ turma, onDone }: { turma: TurmaGestao | null; onDone: () => void }) {
   const editando = turma != null
   const { data: professores } = useProfessores()
@@ -144,12 +155,12 @@ function TurmaForm({ turma, onDone }: { turma: TurmaGestao | null; onDone: () =>
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-      <DialogHeader>
-        <DialogTitle>{editando ? 'Editar turma' : 'Nova turma'}</DialogTitle>
-        <DialogDescription>Preencha os dados da turma.</DialogDescription>
-      </DialogHeader>
+      <SheetHeader>
+        <SheetTitle>{editando ? 'Editar turma' : 'Nova turma'}</SheetTitle>
+        <SheetDescription>Preencha os dados da turma.</SheetDescription>
+      </SheetHeader>
 
-      <DialogBody className="flex flex-col gap-4">
+      <SheetBody className="flex flex-col gap-4">
         <Field label="Professor" htmlFor="professorId" required error={errors.professorId?.message}>
           <Controller
             control={control}
@@ -189,12 +200,21 @@ function TurmaForm({ turma, onDone }: { turma: TurmaGestao | null; onDone: () =>
           </Field>
         </div>
 
-        <Field label="Dias da semana" htmlFor="diasSemana" hint="ex.: SEG,QUA" error={errors.diasSemana?.message}>
-          <Input
-            id="diasSemana"
-            placeholder="SEG,QUA"
-            invalid={!!errors.diasSemana}
-            {...register('diasSemana')}
+        <Field label="Dias da semana" error={errors.diasSemana?.message}>
+          <Controller
+            control={control}
+            name="diasSemana"
+            render={({ field }) => (
+              <ToggleChips
+                aria-label="Dias da semana"
+                options={DIAS_SEMANA}
+                value={field.value
+                  .split(',')
+                  .map((d) => d.trim())
+                  .filter(Boolean)}
+                onChange={(next) => field.onChange(next.join(','))}
+              />
+            )}
           />
         </Field>
 
@@ -268,18 +288,18 @@ function TurmaForm({ turma, onDone }: { turma: TurmaGestao | null; onDone: () =>
             </div>
           </>
         )}
-      </DialogBody>
+      </SheetBody>
 
-      <DialogFooter>
-        <DialogClose asChild>
+      <SheetFooter>
+        <SheetClose asChild>
           <Button type="button" variant="secondary">
             Cancelar
           </Button>
-        </DialogClose>
+        </SheetClose>
         <Button type="submit" loading={salvando}>
           Salvar turma
         </Button>
-      </DialogFooter>
+      </SheetFooter>
     </form>
   )
 }
@@ -384,6 +404,8 @@ export default function GestaoTurmasPage() {
   const { data: turmas, isLoading, isError, refetch } = useTurmasGestao()
   const [dialogAberto, setDialogAberto] = useState(false)
   const [editando, setEditando] = useState<TurmaGestao | null>(null)
+  const [busca, setBusca] = useState('')
+  const [soAtivas, setSoAtivas] = useState(false)
 
   function abrirNova() {
     setEditando(null)
@@ -394,6 +416,16 @@ export default function GestaoTurmasPage() {
     setEditando(turma)
     setDialogAberto(true)
   }
+
+  // Filtro client-side sobre a lista já carregada (a query não mudou — continua List).
+  const filtradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    return (turmas ?? []).filter((t) => {
+      if (soAtivas && !t.ativa) return false
+      if (!termo) return true
+      return t.nome.toLowerCase().includes(termo) || t.idioma.toLowerCase().includes(termo)
+    })
+  }, [turmas, busca, soAtivas])
 
   const total = turmas?.length ?? 0
   const subtitulo =
@@ -441,15 +473,47 @@ export default function GestaoTurmasPage() {
           />
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {turmas!.map((turma) => (
-            <TurmaCard key={turma.id} turma={turma} onEditar={() => abrirEdicao(turma)} />
-          ))}
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-xs">
+              <MagnifyingGlass
+                size={18}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-subtle"
+              />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por nome ou idioma…"
+                aria-label="Buscar turma"
+                className="pl-10"
+              />
+            </div>
+            <label className="flex shrink-0 items-center gap-2.5 text-[14px] font-medium text-ink-muted">
+              <Switch checked={soAtivas} onCheckedChange={setSoAtivas} />
+              Só ativas
+            </label>
+          </div>
+
+          {filtradas.length === 0 ? (
+            <Card className="p-6">
+              <EmptyState
+                icon={<Books size={30} className="text-brand" />}
+                title="Nenhuma turma corresponde"
+                description="Ajuste a busca ou o filtro para ver outras turmas."
+              />
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtradas.map((turma) => (
+                <TurmaCard key={turma.id} turma={turma} onEditar={() => abrirEdicao(turma)} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent>
+      <Sheet open={dialogAberto} onOpenChange={setDialogAberto}>
+        <SheetContent>
           {dialogAberto && (
             <TurmaForm
               key={editando?.id ?? 'nova'}
@@ -457,8 +521,8 @@ export default function GestaoTurmasPage() {
               onDone={() => setDialogAberto(false)}
             />
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

@@ -151,11 +151,6 @@ function ResumoCarregando() {
 // Seção "Precisa da sua atenção" — itens acionáveis (matrículas + mensalidades)
 // ---------------------------------------------------------------------------
 
-/** yyyy-MM-dd no fuso local (sem deslocamento do toISOString). */
-function dataLocalISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 type AtencaoTone = 'warning' | 'danger' | 'info'
 
 const chipTint: Record<AtencaoTone, string> = {
@@ -248,10 +243,10 @@ function AtencaoHeading() {
   return <h2 className="text-base font-bold tracking-[-.01em] text-ink">Precisa da sua atenção</h2>
 }
 
-/** Consulta matrículas aguardando + mensalidades da competência e destaca o acionável. */
+/** Consulta matrículas aguardando + mensalidades atrasadas da competência e destaca o acionável. */
 function AtencaoSection({ competencia }: { competencia: string }) {
-  const matriculas = useMatriculas('AGUARDANDO_APROVACAO')
-  const mensalidades = useMensalidades(competencia)
+  const matriculas = useMatriculas({ status: 'AGUARDANDO_APROVACAO', size: 3 })
+  const mensalidades = useMensalidades({ competencia, situacao: 'ATRASADA', size: 3 })
 
   if (matriculas.isLoading || mensalidades.isLoading) {
     return (
@@ -265,22 +260,13 @@ function AtencaoSection({ competencia }: { competencia: string }) {
     )
   }
 
-  const aguardando = [...(matriculas.data ?? [])].sort((a, b) => a.dataMatricula.localeCompare(b.dataMatricula))
+  // Contagens vêm do agregado do servidor (totalElements); o preview usa a página (≤3 itens).
+  const totalAguardando = matriculas.data?.totalElements ?? 0
+  const aguardando = matriculas.data?.content ?? []
+  const totalAtrasadas = mensalidades.data?.totalElements ?? 0
+  const atrasadas = mensalidades.data?.content ?? []
 
-  const mens = mensalidades.data ?? []
-  const atrasadas = mens.filter((m) => m.situacao === 'ATRASADA').sort((a, b) => b.diasAtraso - a.diasAtraso)
-
-  // "Vencendo esta semana": em aberto com vencimento entre hoje e +7 dias (compara strings yyyy-MM-dd).
-  const hoje = new Date()
-  const limite = new Date(hoje)
-  limite.setDate(limite.getDate() + 7)
-  const hojeStr = dataLocalISO(hoje)
-  const limiteStr = dataLocalISO(limite)
-  const vencendo = mens
-    .filter((m) => m.situacao === 'ABERTA' && m.vencimento >= hojeStr && m.vencimento <= limiteStr)
-    .sort((a, b) => a.vencimento.localeCompare(b.vencimento))
-
-  const temAlgo = aguardando.length > 0 || atrasadas.length > 0 || vencendo.length > 0
+  const temAlgo = totalAguardando > 0 || totalAtrasadas > 0
 
   if (!temAlgo) {
     // Se ambas as consultas falharam e não há dados, não afirme "tudo em dia".
@@ -305,18 +291,18 @@ function AtencaoSection({ competencia }: { competencia: string }) {
     <section className="flex flex-col gap-4">
       <AtencaoHeading />
       <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap">
-        {aguardando.length > 0 && (
+        {totalAguardando > 0 && (
           <GrupoAtencao
             icon={<ClipboardText size={18} weight="fill" />}
             tone="warning"
             titulo="Matrículas aguardando"
-            total={aguardando.length}
-            mostrados={Math.min(aguardando.length, 3)}
+            total={totalAguardando}
+            mostrados={aguardando.length}
             unidade={['solicitação', 'solicitações']}
             to="/gestao/matriculas"
             cta="Revisar solicitações"
           >
-            {aguardando.slice(0, 3).map((m) => (
+            {aguardando.map((m) => (
               <LinhaAtencao
                 key={m.id}
                 nome={m.alunoNome ?? 'Aluno'}
@@ -328,18 +314,18 @@ function AtencaoSection({ competencia }: { competencia: string }) {
           </GrupoAtencao>
         )}
 
-        {atrasadas.length > 0 && (
+        {totalAtrasadas > 0 && (
           <GrupoAtencao
             icon={<Warning size={18} weight="fill" />}
             tone="danger"
             titulo="Mensalidades atrasadas"
-            total={atrasadas.length}
-            mostrados={Math.min(atrasadas.length, 3)}
+            total={totalAtrasadas}
+            mostrados={atrasadas.length}
             unidade={['mensalidade', 'mensalidades']}
             to="/gestao/financeiro"
             cta="Ver no financeiro"
           >
-            {atrasadas.slice(0, 3).map((m) => (
+            {atrasadas.map((m) => (
               <LinhaAtencao
                 key={m.id}
                 nome={m.alunoNome ?? 'Aluno'}
@@ -347,29 +333,6 @@ function AtencaoSection({ competencia }: { competencia: string }) {
                 subTone="danger"
                 direita={formatBRL(m.valorAtualizado)}
                 direitaClass="text-[14px] font-bold text-danger-dark"
-              />
-            ))}
-          </GrupoAtencao>
-        )}
-
-        {vencendo.length > 0 && (
-          <GrupoAtencao
-            icon={<Clock size={18} weight="fill" />}
-            tone="info"
-            titulo="Vencendo esta semana"
-            total={vencendo.length}
-            mostrados={Math.min(vencendo.length, 3)}
-            unidade={['mensalidade', 'mensalidades']}
-            to="/gestao/financeiro"
-            cta="Ver no financeiro"
-          >
-            {vencendo.slice(0, 3).map((m) => (
-              <LinhaAtencao
-                key={m.id}
-                nome={m.alunoNome ?? 'Aluno'}
-                sub={`vence ${formatDate(m.vencimento)}`}
-                direita={formatBRL(m.valorEfetivo)}
-                direitaClass="text-[14px] font-semibold text-ink"
               />
             ))}
           </GrupoAtencao>

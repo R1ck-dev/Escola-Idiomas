@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Boletim, Mensalidade, TurmaDoAluno } from '@/types/api'
+import type { Boletim, Mensalidade, Semestre, TurmaDoAluno } from '@/types/api'
 
 export function useMinhasTurmasAluno() {
   return useQuery({
@@ -21,5 +21,12 @@ export function useMinhasMensalidades() {
   return useQuery({
     queryKey: ['aluno', 'mensalidades'],
     queryFn: async () => (await api.get<Mensalidade[]>('/api/alunos/me/mensalidades')).data,
+  })
+}
+
+export function useSemestres() {
+  return useQuery({
+    queryKey: ['semestres'],
+    queryFn: async () => (await api.get<Semestre[]>('/api/semestres')).data,
   })
 }

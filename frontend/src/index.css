@@ -75,6 +75,12 @@
   /* Animações */
   --animate-shimmer: shimmer 1.3s linear infinite;
   --animate-spin-fast: spin-fast 0.7s linear infinite;
+
+  /* Slide-over lateral (Sheet) */
+  --animate-sheet-overlay-in: sheet-overlay-in 0.25s ease-out;
+  --animate-sheet-overlay-out: sheet-overlay-out 0.2s ease-in;
+  --animate-sheet-in: sheet-in 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-sheet-out: sheet-out 0.26s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @keyframes shimmer {
@@ -89,6 +95,42 @@
 @keyframes spin-fast {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes sheet-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
   }
 }
 

@@ -9,6 +9,15 @@ export type CategoriaDespesa = 'LUZ' | 'ALUGUEL' | 'REPASSE_PROFESSOR' | 'OUTROS
 export type TipoAvaliacao = 'MIDTERM' | 'FINAL'
 export type SituacaoAprovacao = 'APROVADO' | 'REPROVADO' | 'EM_ANDAMENTO'
 
+/** Envelope de paginação do backend (Spring). `page` é índice 0-based. */
+export interface Pagina<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 export interface TokenResponse {
   token: string
   tipo: string

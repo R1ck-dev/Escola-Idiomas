@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { CheckCircle, ChartBar, Clock, Exam, XCircle } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { formatPercent } from '@/lib/format'
 import { situacaoAprovacao, tipoAvaliacaoLabel } from '@/lib/status'
-import { useMeuBoletim } from '@/api/aluno'
+import { useMeuBoletim, useSemestres } from '@/api/aluno'
 import type { Boletim, SituacaoAprovacao } from '@/types/api'
 
 /** Limite de faltas (regra de negócio): acima disso o aluno reprova por frequência. */
@@ -157,9 +158,18 @@ function BoletimCard({ boletim }: { boletim: Boletim }) {
 }
 
 export default function AlunoBoletimPage() {
-  const { data: boletins, isLoading, isError, refetch } = useMeuBoletim()
+  const [semestreId, setSemestreId] = useState<string | undefined>(undefined)
+  const { data: boletins, isLoading, isError, refetch } = useMeuBoletim(semestreId)
+  const { data: semestres, isLoading: semestresLoading } = useSemestres()
 
   const total = boletins?.length ?? 0
+
+  // Sem seleção explícita, reflete o semestre vigente que o backend resolveu no boletim.
+  const boletimAtual = boletins?.[0]
+  const semestreValue =
+    semestreId ??
+    boletimAtual?.semestreId ??
+    semestres?.find((s) => s.referencia === boletimAtual?.semestreReferencia)?.id
 
   return (
     <div className="mx-auto w-full max-w-[640px]">
@@ -173,6 +183,21 @@ export default function AlunoBoletimPage() {
           </p>
         )}
       </header>
+
+      <div className="mb-5">
+        <Select value={semestreValue} onValueChange={setSemestreId} disabled={semestresLoading}>
+          <SelectTrigger className="h-[46px] w-full rounded border-[1.5px] border-line text-[15px] font-semibold sm:w-[260px]">
+            <SelectValue placeholder={semestresLoading ? 'Carregando semestres…' : 'Semestre'} />
+          </SelectTrigger>
+          <SelectContent>
+            {semestres?.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {formatSemestre(s.referencia)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {isLoading ? (
         <LoadingRows rows={2} />

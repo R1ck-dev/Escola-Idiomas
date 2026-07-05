@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
   AtualizarProfessorPayload,
@@ -10,12 +10,14 @@ import type {
   Despesa,
   MatriculaDetalhada,
   MensalidadePainel,
+  Pagina,
   Professor,
   ProfessorResumo,
   RegistrarDespesaPayload,
   RejeitarMatriculaPayload,
   Semestre,
   StatusMatricula,
+  StatusMensalidade,
   Turma,
   TurmaGestao,
 } from '@/types/api'
@@ -30,13 +32,44 @@ export function useDashboard(competencia?: string) {
   })
 }
 
+// ---------- Busca de alunos (cabeçalho da gestão) ----------
+
+/**
+ * Item da busca de alunos do cabeçalho (GET /api/alunos?q=). Espelha { id, nome, email }
+ * do backend. Definido/exportado aqui para manter a alteração restrita a este módulo.
+ */
+export interface AlunoBusca {
+  id: string
+  nome: string
+  email: string
+}
+
+/** Busca alunos por nome/e-mail. Só dispara com ≥2 chars; mantém o resultado anterior enquanto rebusca. */
+export function useBuscarAlunos(termo: string) {
+  return useQuery({
+    queryKey: ['gestao', 'alunos-busca', termo],
+    queryFn: async () =>
+      (await api.get<AlunoBusca[]>('/api/alunos', { params: { q: termo || undefined } })).data,
+    enabled: termo.trim().length >= 2,
+    placeholderData: keepPreviousData,
+  })
+}
+
 // ---------- Matrículas (G2 / G3) ----------
 
-export function useMatriculas(status?: StatusMatricula) {
+export function useMatriculas(
+  params: { status?: StatusMatricula; q?: string; page?: number; size?: number } = {},
+) {
+  const { status, q, page = 0, size = 20 } = params
   return useQuery({
-    queryKey: ['gestao', 'matriculas', status ?? 'todas'],
+    queryKey: ['gestao', 'matriculas', status ?? 'todas', q ?? '', page, size],
     queryFn: async () =>
-      (await api.get<MatriculaDetalhada[]>('/api/matriculas', { params: status ? { status } : {} })).data,
+      (
+        await api.get<Pagina<MatriculaDetalhada>>('/api/matriculas', {
+          params: { ...(status ? { status } : {}), ...(q ? { q } : {}), page, size },
+        })
+      ).data,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -132,12 +165,23 @@ export function useReenviarConviteProfessor() {
 
 // ---------- Financeiro (G6) ----------
 
-export function useMensalidades(competencia: string) {
+export function useMensalidades(params: {
+  competencia: string
+  situacao?: StatusMensalidade
+  page?: number
+  size?: number
+}) {
+  const { competencia, situacao, page = 0, size = 20 } = params
   return useQuery({
-    queryKey: ['gestao', 'mensalidades', competencia],
+    queryKey: ['gestao', 'mensalidades', competencia, situacao ?? 'todas', page, size],
     queryFn: async () =>
-      (await api.get<MensalidadePainel[]>('/api/mensalidades', { params: { competencia } })).data,
+      (
+        await api.get<Pagina<MensalidadePainel>>('/api/mensalidades', {
+          params: { competencia, ...(situacao ? { situacao } : {}), page, size },
+        })
+      ).data,
     enabled: !!competencia,
+    placeholderData: keepPreviousData,
   })
 }
 

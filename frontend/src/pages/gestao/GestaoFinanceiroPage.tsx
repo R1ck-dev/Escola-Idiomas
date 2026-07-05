@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { DotsThreeOutline, HouseLine, Lightning, PencilSimple, Plus, Receipt, Trash, User, Wallet } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, DotsThreeOutline, HouseLine, Lightning, PencilSimple, Plus, Receipt, Trash, User, Wallet } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import type { BadgeTone } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,16 @@ import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -41,7 +51,7 @@ import {
   useProfessores,
   useRegistrarDespesa,
 } from '@/api/gestao'
-import type { CategoriaDespesa, Despesa, MensalidadePainel, RegistrarDespesaPayload } from '@/types/api'
+import type { CategoriaDespesa, Despesa, MensalidadePainel, RegistrarDespesaPayload, StatusMensalidade } from '@/types/api'
 
 /** Data de hoje em "yyyy-MM-dd" (fuso local, sem deslocamento do toISOString). */
 function hojeISO(): string {
@@ -52,6 +62,35 @@ function hojeISO(): string {
 // ---------------------------------------------------------------------------
 // Aba Mensalidades
 // ---------------------------------------------------------------------------
+
+type SituacaoFiltro = 'TODAS' | StatusMensalidade
+
+const SITUACAO_OPCOES: { value: SituacaoFiltro; label: string }[] = [
+  { value: 'TODAS', label: 'Todas' },
+  { value: 'ABERTA', label: 'Em aberto' },
+  { value: 'ATRASADA', label: 'Atrasada' },
+  { value: 'PAGA', label: 'Paga' },
+]
+
+/** Controles Anterior/Próxima + "Página X de Y" (índice 0-based). Some com página única. */
+function Paginacao({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
+  if (totalPages <= 1) return null
+  return (
+    <div className="flex items-center justify-between gap-3 pt-1">
+      <Button variant="secondary" size="row" disabled={page <= 0} onClick={() => onPage(page - 1)}>
+        <CaretLeft size={16} weight="bold" />
+        Anterior
+      </Button>
+      <span className="tabular text-[13px] text-ink-muted">
+        Página {page + 1} de {totalPages}
+      </span>
+      <Button variant="secondary" size="row" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}>
+        Próxima
+        <CaretRight size={16} weight="bold" />
+      </Button>
+    </div>
+  )
+}
 
 /** Resumo do topo (3 chips) alimentado pelo dashboard da competência. */
 function ResumoMensalidades({ comp }: { comp: string }) {
@@ -201,13 +240,54 @@ function LinhaAcao({ m }: { m: MensalidadePainel }) {
 }
 
 function MensalidadesTab({ comp }: { comp: string }) {
-  const { data, isLoading, isError, refetch } = useMensalidades(comp)
-  const mensalidades = data ?? []
+  const [sit, setSit] = useState<SituacaoFiltro>('TODAS')
+  const [page, setPage] = useState(0)
+
+  // Volta à primeira página ao trocar de competência ou de filtro de situação.
+  useEffect(() => {
+    setPage(0)
+  }, [comp, sit])
+
+  const { data, isLoading, isError, refetch } = useMensalidades({
+    competencia: comp,
+    situacao: sit === 'TODAS' ? undefined : sit,
+    page,
+  })
+  const mensalidades = data?.content ?? []
   const temAtraso = mensalidades.some((m) => m.situacao === 'ATRASADA')
+
+  // Se a página atual ficou fora do intervalo (ex.: baixa na última linha), volta para a última válida.
+  useEffect(() => {
+    if (data && data.totalPages > 0 && page > data.totalPages - 1) {
+      setPage(data.totalPages - 1)
+    }
+  }, [data, page])
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Resumo vem do agregado do servidor (dashboard), não da lista paginada. */}
       <ResumoMensalidades comp={comp} />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-[15px] text-ink-muted">Mensalidades de {formatCompetencia(comp)}.</p>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="filtro-situacao" className="text-[13px] font-medium text-ink-muted">
+            Situação
+          </Label>
+          <Select value={sit} onValueChange={(v) => setSit(v as SituacaoFiltro)}>
+            <SelectTrigger id="filtro-situacao" className="h-11 w-[168px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SITUACAO_OPCOES.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {isLoading ? (
         <LoadingRows rows={5} />
@@ -217,7 +297,11 @@ function MensalidadesTab({ comp }: { comp: string }) {
         <EmptyState
           icon={<Wallet size={30} className="text-brand" />}
           title="Nenhuma mensalidade nesta competência"
-          description={`Não há mensalidades geradas para ${formatCompetencia(comp)}.`}
+          description={
+            sit === 'TODAS'
+              ? `Não há mensalidades geradas para ${formatCompetencia(comp)}.`
+              : `Nenhuma mensalidade neste filtro em ${formatCompetencia(comp)}.`
+          }
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -274,6 +358,7 @@ function MensalidadesTab({ comp }: { comp: string }) {
               Nas mensalidades atrasadas, o valor atualizado já inclui multa de 2% + mora de R$ 1/dia (teto de 30 dias).
             </p>
           )}
+          <Paginacao page={data?.page ?? 0} totalPages={data?.totalPages ?? 1} onPage={setPage} />
         </div>
       )}
     </div>
@@ -376,11 +461,11 @@ function DespesaForm({ despesa, onDone }: { despesa: Despesa | null; onDone: () 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-      <DialogHeader>
-        <DialogTitle>{editando ? 'Editar despesa' : 'Registrar despesa'}</DialogTitle>
-        <DialogDescription>{editando ? 'Atualize os dados da saída.' : 'Lance uma saída do mês.'}</DialogDescription>
-      </DialogHeader>
-      <DialogBody className="flex flex-col gap-4">
+      <SheetHeader>
+        <SheetTitle>{editando ? 'Editar despesa' : 'Registrar despesa'}</SheetTitle>
+        <SheetDescription>{editando ? 'Atualize os dados da saída.' : 'Lance uma saída do mês.'}</SheetDescription>
+      </SheetHeader>
+      <SheetBody className="flex flex-col gap-4">
         <Field label="Descrição" htmlFor="descricao" required error={errors.descricao?.message}>
           <Input
             id="descricao"
@@ -456,17 +541,17 @@ function DespesaForm({ despesa, onDone }: { despesa: Despesa | null; onDone: () 
             <Input id="data" type="date" className="tabular" invalid={!!errors.data} {...register('data')} />
           </Field>
         </div>
-      </DialogBody>
-      <DialogFooter>
-        <DialogClose asChild>
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
           <Button type="button" variant="secondary">
             Cancelar
           </Button>
-        </DialogClose>
+        </SheetClose>
         <Button type="submit" loading={salvando}>
           {editando ? 'Salvar' : 'Registrar'}
         </Button>
-      </DialogFooter>
+      </SheetFooter>
     </form>
   )
 }
@@ -595,8 +680,8 @@ function DespesasTab({ comp }: { comp: string }) {
         </Table>
       )}
 
-      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent>
+      <Sheet open={dialogAberto} onOpenChange={setDialogAberto}>
+        <SheetContent>
           {dialogAberto && (
             <DespesaForm
               key={editando?.id ?? 'nova'}
@@ -604,8 +689,8 @@ function DespesasTab({ comp }: { comp: string }) {
               onDone={() => setDialogAberto(false)}
             />
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

@@ -3,14 +3,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Buildings, ChalkboardTeacher, Eye, EyeSlash, Student } from '@phosphor-icons/react';
+import { Buildings, ChalkboardTeacher, Eye, EyeSlash, Student, WarningCircle } from '@phosphor-icons/react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { toast } from '@/components/ui/toaster';
 import { useAuth } from '@/auth/AuthContext';
 import { roleHome } from '@/auth/roleHome';
 import { mensagemErro } from '@/lib/api';
@@ -34,6 +33,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [acessoRapido, setAcessoRapido] = useState<string | null>(null);
+  const [erroLogin, setErroLogin] = useState<string | null>(null);
 
   const {
     register,
@@ -45,12 +45,13 @@ export default function LoginPage() {
   });
 
   async function entrar(email: string, password: string, chave?: string) {
+    setErroLogin(null);
     if (chave) setAcessoRapido(chave);
     try {
       const me = await login({ email, password });
       navigate(roleHome[me.role]);
     } catch (e) {
-      toast.error(mensagemErro(e));
+      setErroLogin(mensagemErro(e));
     } finally {
       if (chave) setAcessoRapido(null);
     }
@@ -66,6 +67,16 @@ export default function LoginPage() {
           <p className="text-ink-muted">Acesse a sua conta.</p>
         </div>
 
+        {erroLogin && (
+          <div
+            role="alert"
+            className="mb-5 flex items-start gap-3 rounded border-[1.5px] border-danger/35 bg-danger-bg p-3.5"
+          >
+            <WarningCircle size={20} weight="fill" className="mt-0.5 shrink-0 text-danger" />
+            <p className="text-[13px] font-medium leading-snug text-danger-dark">{erroLogin}</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit((v) => entrar(v.email, v.password))} noValidate className="space-y-5">
           <Field label="E-mail" htmlFor="email" error={errors.email?.message}>
             <Input
@@ -74,7 +85,7 @@ export default function LoginPage() {
               autoComplete="email"
               inputMode="email"
               placeholder="maria.silva@email.com"
-              invalid={!!errors.email}
+              invalid={!!errors.email || !!erroLogin}
               disabled={ocupado}
               {...register('email')}
             />
@@ -88,7 +99,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 placeholder="Sua senha"
                 className="pr-12"
-                invalid={!!errors.password}
+                invalid={!!errors.password || !!erroLogin}
                 disabled={ocupado}
                 {...register('password')}
               />

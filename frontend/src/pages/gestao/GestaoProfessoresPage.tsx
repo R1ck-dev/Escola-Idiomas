@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ChalkboardTeacher, Info, PaperPlaneTilt, PencilSimple, Plus } from '@phosphor-icons/react'
@@ -23,9 +23,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { ToggleChips } from '@/components/ui/toggle-chips'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { toast } from '@/components/ui/toaster'
@@ -78,6 +89,22 @@ function opcional(valor: string): string | undefined {
   return t ? t : undefined
 }
 
+// Conjunto fixo de idiomas oferecido como chips (não há lista canônica no app).
+const IDIOMAS_FIXOS = ['Inglês', 'Espanhol', 'Francês', 'Alemão', 'Italiano', 'Português']
+
+/** "Inglês, Espanhol" → ['Inglês', 'Espanhol'] (sem vazios). */
+function parseIdiomas(valor: string): string[] {
+  return valor
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+/** ['Inglês', 'Espanhol'] → "Inglês, Espanhol". */
+function joinIdiomas(itens: string[]): string {
+  return itens.join(', ')
+}
+
 // ---------- Formulário (cadastro / edição) ----------
 
 function ProfessorForm({ professor, onDone }: { professor: Professor | null; onDone: () => void }) {
@@ -89,6 +116,7 @@ function ProfessorForm({ professor, onDone }: { professor: Professor | null; onD
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(editando ? schemaEditar : schemaCriar),
@@ -129,16 +157,16 @@ function ProfessorForm({ professor, onDone }: { professor: Professor | null; onD
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-      <DialogHeader>
-        <DialogTitle>{editando ? 'Editar professor' : 'Cadastrar professor'}</DialogTitle>
-        <DialogDescription>
+      <SheetHeader>
+        <SheetTitle>{editando ? 'Editar professor' : 'Cadastrar professor'}</SheetTitle>
+        <SheetDescription>
           {editando
             ? 'Atualize os dados de contato e pagamento. O e-mail de acesso não pode ser alterado.'
             : 'Ele receberá um e-mail para definir a senha.'}
-        </DialogDescription>
-      </DialogHeader>
+        </SheetDescription>
+      </SheetHeader>
 
-      <DialogBody className="flex flex-col gap-4">
+      <SheetBody className="flex flex-col gap-4">
         <Field label="Nome completo" htmlFor="nome" required error={errors.nome?.message}>
           <Input id="nome" placeholder="Camila Rocha" invalid={!!errors.nome} {...register('nome')} />
         </Field>
@@ -204,11 +232,27 @@ function ProfessorForm({ professor, onDone }: { professor: Professor | null; onD
 
         <Field
           label="Idiomas habilitados"
-          htmlFor="idiomasHabilitados"
-          hint="ex.: Inglês, Espanhol"
+          hint="Selecione um ou mais idiomas."
           error={errors.idiomasHabilitados?.message}
         >
-          <Input id="idiomasHabilitados" placeholder="Inglês, Espanhol" {...register('idiomasHabilitados')} />
+          <Controller
+            control={control}
+            name="idiomasHabilitados"
+            render={({ field }) => {
+              const selecionados = parseIdiomas(field.value)
+              // Preserva idiomas fora da lista fixa (ex.: valor legado na edição).
+              const extras = selecionados.filter((i) => !IDIOMAS_FIXOS.includes(i))
+              const options = [...IDIOMAS_FIXOS, ...extras].map((i) => ({ value: i, label: i }))
+              return (
+                <ToggleChips
+                  aria-label="Idiomas habilitados"
+                  options={options}
+                  value={selecionados}
+                  onChange={(next) => field.onChange(joinIdiomas(next))}
+                />
+              )
+            }}
+          />
         </Field>
 
         <div className="flex items-start gap-2.5 rounded-xl bg-canvas px-3.5 py-3 text-[13px] leading-relaxed text-ink-muted">
@@ -217,18 +261,18 @@ function ProfessorForm({ professor, onDone }: { professor: Professor | null; onD
             ? 'Os campos de PIX e dados bancários só são alterados se você preenchê-los.'
             : 'Ao cadastrar, enviamos um e-mail para o professor definir a senha e acessar a área dele.'}
         </div>
-      </DialogBody>
+      </SheetBody>
 
-      <DialogFooter>
-        <DialogClose asChild>
+      <SheetFooter>
+        <SheetClose asChild>
           <Button type="button" variant="secondary">
             Cancelar
           </Button>
-        </DialogClose>
+        </SheetClose>
         <Button type="submit" variant="primary" loading={salvando}>
           {editando ? 'Salvar alterações' : 'Cadastrar'}
         </Button>
-      </DialogFooter>
+      </SheetFooter>
     </form>
   )
 }
@@ -375,8 +419,8 @@ export default function GestaoProfessoresPage() {
         </Table>
       )}
 
-      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="sm:max-w-xl">
+      <Sheet open={dialogAberto} onOpenChange={setDialogAberto}>
+        <SheetContent>
           {dialogAberto && (
             <ProfessorForm
               key={editando?.id ?? 'novo'}
@@ -384,8 +428,8 @@ export default function GestaoProfessoresPage() {
               onDone={() => setDialogAberto(false)}
             />
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!reenviarAlvo} onOpenChange={(o) => !o && setReenviarAlvo(null)}>
         {reenviarAlvo && (
