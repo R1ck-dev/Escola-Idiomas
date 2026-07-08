@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   CalendarBlank,
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { toast } from '@/components/ui/toaster'
+import { api, mensagemErro } from '@/lib/api'
 import { competenciaAtual, formatBRL, formatCompetencia, formatDate } from '@/lib/format'
 import { statusMensalidade } from '@/lib/status'
 import { useMinhaPix, useMinhasMensalidades } from '@/api/aluno'
@@ -118,6 +120,11 @@ function DestaqueMensalidade({ m, onPagar }: { m: Mensalidade; onPagar: () => vo
 /** Modal com o QR Code e o copia-e-cola do PIX da mensalidade selecionada. */
 function PixDialog({ mensalidade, onClose }: { mensalidade: Mensalidade | null; onClose: () => void }) {
   const { data: pix, isLoading, isError, refetch } = useMinhaPix(mensalidade?.id ?? null)
+  const qc = useQueryClient()
+  const [simulando, setSimulando] = useState(false)
+
+  // Só em DEV: botão que imita o aviso do banco (webhook) e marca a mensalidade como paga.
+  const devSimular = import.meta.env.DEV && !!import.meta.env.VITE_JOB_SECRET
 
   async function copiar() {
     if (!pix) return
@@ -126,6 +133,24 @@ function PixDialog({ mensalidade, onClose }: { mensalidade: Mensalidade | null; 
       toast.success('Código PIX copiado.')
     } catch {
       toast.error('Não foi possível copiar. Selecione o código e copie manualmente.')
+    }
+  }
+
+  async function simularPagamento() {
+    if (!pix) return
+    setSimulando(true)
+    try {
+      await api.post('/jobs/pix/confirmar', null, {
+        params: { mensalidadeId: pix.mensalidadeId },
+        headers: { 'X-Job-Secret': import.meta.env.VITE_JOB_SECRET },
+      })
+      toast.success('Pagamento confirmado (simulado).')
+      qc.invalidateQueries({ queryKey: ['aluno', 'mensalidades'] })
+      onClose()
+    } catch (e) {
+      toast.error(mensagemErro(e))
+    } finally {
+      setSimulando(false)
     }
   }
 
@@ -172,6 +197,23 @@ function PixDialog({ mensalidade, onClose }: { mensalidade: Mensalidade | null; 
               <p className="text-center text-[12px] text-ink-subtle">
                 Recebedor: {pix.recebedor} · Chave: {pix.chave}
               </p>
+
+              {devSimular && (
+                <div className="w-full border-t border-dashed border-line pt-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    loading={simulando}
+                    onClick={simularPagamento}
+                  >
+                    Já paguei (simular confirmação)
+                  </Button>
+                  <p className="mt-1 text-center text-[11px] text-ink-subtle">
+                    Só em desenvolvimento — imita o aviso de pagamento do banco.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </DialogBody>
