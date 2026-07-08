@@ -20,6 +20,62 @@ function hojeISO(): string {
   return local.toISOString().slice(0, 10)
 }
 
+/** Token do dia da semana (como salvo na turma) -> índice JS getDay() (0=dom..6=sáb). */
+const DIA_TOKEN: Record<string, number> = { DOM: 0, SEG: 1, TER: 2, QUA: 3, QUI: 4, SEX: 5, SAB: 6 }
+const DIA_LABEL = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+
+/** "SEG,QUA" -> Set {1,3}. Vazio = turma sem grade (sem restrição de dia). */
+function parseDiasDeAula(diasSemana?: string | null): Set<number> {
+  const set = new Set<number>()
+  for (const t of (diasSemana ?? '').split(',')) {
+    const d = DIA_TOKEN[t.trim().toUpperCase()]
+    if (d !== undefined) set.add(d)
+  }
+  return set
+}
+
+/** "SEG,QUA" -> "seg/qua" para exibir ao professor. */
+function rotuloDias(diasSemana?: string | null): string {
+  return [...parseDiasDeAula(diasSemana)].sort().map((d) => DIA_LABEL[d]).join('/')
+}
+
+function diaDaSemana(iso: string): number {
+  return new Date(`${iso}T00:00:00`).getDay()
+}
+
+function somaDias(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00`)
+  d.setDate(d.getDate() + n)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dia = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dia}`
+}
+
+/** Dia de aula anterior a `iso` (procura até 7 dias atrás). */
+function aulaAnterior(iso: string, dias: Set<number>): string | null {
+  for (let i = 1; i <= 7; i++) {
+    const c = somaDias(iso, -i)
+    if (dias.has(diaDaSemana(c))) return c
+  }
+  return null
+}
+
+/** Próximo dia de aula após `iso`, sem passar de `maxIso`. */
+function aulaProxima(iso: string, dias: Set<number>, maxIso: string): string | null {
+  for (let i = 1; i <= 7; i++) {
+    const c = somaDias(iso, i)
+    if (c > maxIso) return null
+    if (dias.has(diaDaSemana(c))) return c
+  }
+  return null
+}
+
+/** `iso` se for dia de aula; senão, o dia de aula anterior mais próximo. */
+function ajustarParaDiaDeAula(iso: string, dias: Set<number>): string {
+  return dias.has(diaDaSemana(iso)) ? iso : (aulaAnterior(iso, dias) ?? iso)
+}
+
 /**
  * Cartão-toggle de presença. O cartão inteiro é o alvo de toque: tocar alterna
  * Presente ⇄ Falta. Presente = verde suave; Falta = fundo/borda avermelhados.
@@ -76,15 +132,32 @@ export default function ChamadaPage() {
   const { data: datasComChamada } = useDatasComChamada(turmaId)
   const registrar = useRegistrarChamada()
 
-  const turmaNome = turmas?.find((t) => t.id === turmaId)?.nome
+  const turma = turmas?.find((t) => t.id === turmaId)
+  const turmaNome = turma?.nome
 
-  // Navegação entre os dias já com chamada (datas ISO ordenadas asc → comparação lexicográfica).
-  const datas = useMemo(() => datasComChamada ?? [], [datasComChamada])
+  // Dias de aula da turma (RN-35). Vazio = turma sem grade → sem restrição de dia.
+  const diasDeAula = useMemo(() => parseDiasDeAula(turma?.diasSemana), [turma])
+  const temGrade = diasDeAula.size > 0
+
+  // Ao abrir a turma, se a data cair fora da grade (ex.: hoje não é dia de aula), volta ao último dia de aula.
+  useEffect(() => {
+    if (temGrade && !diasDeAula.has(diaDaSemana(data))) {
+      setData((cur) => ajustarParaDiaDeAula(cur, diasDeAula))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turmaId, temGrade])
+
+  // Navegação: com grade, salta entre dias de aula; sem grade, entre os dias já com chamada.
+  const datasComReg = useMemo(() => datasComChamada ?? [], [datasComChamada])
   const dataAnterior = useMemo(() => {
-    const anteriores = datas.filter((d) => d < data)
+    if (temGrade) return aulaAnterior(data, diasDeAula)
+    const anteriores = datasComReg.filter((d) => d < data)
     return anteriores.length ? anteriores[anteriores.length - 1] : null
-  }, [datas, data])
-  const dataProxima = useMemo(() => datas.find((d) => d > data) ?? null, [datas, data])
+  }, [temGrade, diasDeAula, datasComReg, data])
+  const dataProxima = useMemo(() => {
+    if (temGrade) return aulaProxima(data, diasDeAula, hojeISO())
+    return datasComReg.find((d) => d > data) ?? null
+  }, [temGrade, diasDeAula, datasComReg, data])
 
   // Marcações locais por matrícula. presente===null (aula ainda não criada) vira "presente" por padrão.
   const [marcacoes, setMarcacoes] = useState<Record<string, boolean>>({})
@@ -172,7 +245,15 @@ export default function ChamadaPage() {
               type="date"
               value={data}
               max={hojeISO()}
-              onChange={(e) => setData(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                if (!v) return
+                if (temGrade && !diasDeAula.has(diaDaSemana(v))) {
+                  toast.error(`Esta turma tem aula só em ${rotuloDias(turma?.diasSemana)}.`)
+                  return
+                }
+                setData(v)
+              }}
               aria-label="Data da chamada"
               className="absolute inset-0 cursor-pointer opacity-0"
             />
@@ -191,9 +272,14 @@ export default function ChamadaPage() {
         </div>
       </div>
 
-      {turmaId && datas.length > 0 && (
+      {turmaId && temGrade && (
         <p className="mb-4 text-[13px] text-ink-muted">
-          {datas.length === 1 ? '1 dia com chamada registrada' : `${datas.length} dias com chamada registrada`} — use ◀ ▶ para revisar/corrigir.
+          Aulas em {rotuloDias(turma?.diasSemana)} — use ◀ ▶ para andar pelos dias de aula.
+        </p>
+      )}
+      {turmaId && !temGrade && datasComReg.length > 0 && (
+        <p className="mb-4 text-[13px] text-ink-muted">
+          {datasComReg.length === 1 ? '1 dia com chamada registrada' : `${datasComReg.length} dias com chamada registrada`} — use ◀ ▶ para revisar/corrigir.
         </p>
       )}
 

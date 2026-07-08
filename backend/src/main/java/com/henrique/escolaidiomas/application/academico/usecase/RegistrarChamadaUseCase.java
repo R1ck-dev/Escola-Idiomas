@@ -50,6 +50,11 @@ public class RegistrarChamadaUseCase {
         }
 
         LocalDate data = (input.data() != null) ? input.data() : LocalDate.now();
+        // RN-35: so ha chamada nos dias de aula da turma (evita contar falta em dia sem aula).
+        if (!turma.temAulaNoDia(data.getDayOfWeek())) {
+            throw new NegocioException(
+                    "A turma nao tem aula neste dia (dias de aula: " + turma.getDiasSemana() + ").");
+        }
         Semestre semestre = resolverSemestre.vigente(data);
 
         Aula aula = aulaRepository.buscarPorTurmaSemestreEData(turma.getId(), semestre.getId(), data)

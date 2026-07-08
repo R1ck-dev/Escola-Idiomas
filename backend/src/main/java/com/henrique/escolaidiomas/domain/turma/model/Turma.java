@@ -1,7 +1,9 @@
 package com.henrique.escolaidiomas.domain.turma.model;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.Map;
 import java.util.UUID;
 
 import com.henrique.escolaidiomas.domain.shared.NegocioException;
@@ -106,6 +108,32 @@ public class Turma {
 
     public String getNivel() {
         return nivel;
+    }
+
+    /** Tokens de dia da semana (como salvos em diasSemana) -> DayOfWeek. */
+    private static final Map<String, DayOfWeek> DIAS = Map.of(
+            "DOM", DayOfWeek.SUNDAY,
+            "SEG", DayOfWeek.MONDAY,
+            "TER", DayOfWeek.TUESDAY,
+            "QUA", DayOfWeek.WEDNESDAY,
+            "QUI", DayOfWeek.THURSDAY,
+            "SEX", DayOfWeek.FRIDAY,
+            "SAB", DayOfWeek.SATURDAY);
+
+    /**
+     * RN-35: a turma tem aula neste dia da semana? Sem dias definidos =&gt; sem restricao
+     * (retorna true), pra nao travar turmas legadas/sem grade.
+     */
+    public boolean temAulaNoDia(DayOfWeek dia) {
+        if (diasSemana == null || diasSemana.isBlank()) {
+            return true;
+        }
+        for (String token : diasSemana.split(",")) {
+            if (DIAS.get(token.trim().toUpperCase()) == dia) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public String getDiasSemana() {
