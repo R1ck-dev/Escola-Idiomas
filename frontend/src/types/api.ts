@@ -153,6 +153,25 @@ export interface Semestre {
   dataFim: string
 }
 
+/** Uma ocorrência de aula na visão do aluno. `presente: null` = aula sem registro de chamada. */
+export interface AulaFrequencia {
+  aulaId: string
+  data: string // "yyyy-MM-dd"
+  presente: boolean | null
+}
+
+/** Frequência detalhada do aluno numa turma/semestre (GET /api/alunos/me/frequencia); casa com Boletim por matriculaId. */
+export interface FrequenciaTurma {
+  matriculaId: string
+  turmaId: string
+  turmaNome: string | null
+  semestreId: string
+  faltas: number
+  totalAulas: number
+  percentualFaltas: number
+  aulas: AulaFrequencia[]
+}
+
 // ---- Leitura da gestão (DTOs enriquecidos) ----
 
 export interface Professor {

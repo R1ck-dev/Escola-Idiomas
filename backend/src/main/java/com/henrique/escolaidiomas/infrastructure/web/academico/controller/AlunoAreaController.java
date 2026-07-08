@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.henrique.escolaidiomas.application.academico.dto.BoletimDTO;
+import com.henrique.escolaidiomas.application.academico.dto.FrequenciaTurmaDTO;
 import com.henrique.escolaidiomas.application.academico.usecase.ConsultarBoletimDoAlunoUseCase;
+import com.henrique.escolaidiomas.application.academico.usecase.ConsultarFrequenciaDoAlunoUseCase;
 import com.henrique.escolaidiomas.application.academico.usecase.ListarTurmasDoAlunoUseCase;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarMensalidadesDoAlunoUseCase;
@@ -27,6 +29,7 @@ public class AlunoAreaController {
 
     private final ListarTurmasDoAlunoUseCase listarTurmasDoAlunoUseCase;
     private final ConsultarBoletimDoAlunoUseCase consultarBoletimDoAlunoUseCase;
+    private final ConsultarFrequenciaDoAlunoUseCase consultarFrequenciaDoAlunoUseCase;
     private final ConsultarMensalidadesDoAlunoUseCase consultarMensalidadesDoAlunoUseCase;
 
     @GetMapping("/turmas")
@@ -39,6 +42,13 @@ public class AlunoAreaController {
             @CurrentUserId UUID alunoId,
             @RequestParam(required = false) UUID semestreId) {
         return ResponseEntity.ok(consultarBoletimDoAlunoUseCase.execute(alunoId, semestreId));
+    }
+
+    @GetMapping("/frequencia")
+    public ResponseEntity<List<FrequenciaTurmaDTO>> minhaFrequencia(
+            @CurrentUserId UUID alunoId,
+            @RequestParam(required = false) UUID semestreId) {
+        return ResponseEntity.ok(consultarFrequenciaDoAlunoUseCase.execute(alunoId, semestreId));
     }
 
     @GetMapping("/mensalidades")

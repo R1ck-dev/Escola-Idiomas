@@ -30,4 +30,14 @@ public interface SpringDataPresencaRepository extends JpaRepository<PresencaJpaE
             """)
     long contarFaltasPorMatriculaESemestre(@Param("matriculaId") UUID matriculaId,
             @Param("semestreId") UUID semestreId);
+
+    /** Presencas da matricula nas aulas do semestre (join implicito por aula_id). */
+    @Query("""
+            SELECT p FROM PresencaJpaEntity p, AulaJpaEntity a
+            WHERE p.aulaId = a.id
+              AND p.matriculaId = :matriculaId
+              AND a.semestreId = :semestreId
+            """)
+    List<PresencaJpaEntity> listarPorMatriculaESemestre(@Param("matriculaId") UUID matriculaId,
+            @Param("semestreId") UUID semestreId);
 }

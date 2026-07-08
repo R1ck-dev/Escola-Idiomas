@@ -1,12 +1,12 @@
-import { useState, type ReactNode } from 'react'
-import { CheckCircle, ChartBar, Clock, Exam, XCircle } from '@phosphor-icons/react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { CaretDown, CheckCircle, ChartBar, Clock, Exam, MinusCircle, XCircle } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { formatPercent } from '@/lib/format'
 import { situacaoAprovacao, tipoAvaliacaoLabel } from '@/lib/status'
-import { useMeuBoletim, useSemestres } from '@/api/aluno'
-import type { Boletim, SituacaoAprovacao } from '@/types/api'
+import { useMeuBoletim, useMinhaFrequencia, useSemestres } from '@/api/aluno'
+import type { AulaFrequencia, Boletim, SituacaoAprovacao } from '@/types/api'
 
 /** Limite de faltas (regra de negócio): acima disso o aluno reprova por frequência. */
 const LIMITE_FALTAS = 25
@@ -37,6 +37,33 @@ function formatSemestre(ref: string | null): string {
   return `${m[2]}º semestre de ${m[1]}`
 }
 
+/** "2026-07-05" → "05/07 · sáb". */
+function formatDataAula(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`)
+  const dia = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+  const semana = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
+  return `${dia} · ${semana}`
+}
+
+const presencaVisual = {
+  presente: { icon: <CheckCircle size={18} weight="fill" className="text-success" />, label: 'Presente' },
+  falta: { icon: <XCircle size={18} weight="fill" className="text-danger" />, label: 'Falta' },
+  semRegistro: { icon: <MinusCircle size={18} className="text-ink-subtle" />, label: 'Sem registro' },
+} as const
+
+function AulaLinha({ aula }: { aula: AulaFrequencia }) {
+  const v = aula.presente == null ? presencaVisual.semRegistro : aula.presente ? presencaVisual.presente : presencaVisual.falta
+  return (
+    <li className="flex items-center justify-between gap-3 py-2">
+      <span className="text-[13px] font-medium text-ink tabular">{formatDataAula(aula.data)}</span>
+      <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted">
+        {v.icon}
+        {v.label}
+      </span>
+    </li>
+  )
+}
+
 function NotaTile({ label, nota }: { label: string; nota: number | null }) {
   return (
     <div className="rounded-xl border border-line bg-surface-2 p-4">
@@ -55,10 +82,13 @@ function NotaTile({ label, nota }: { label: string; nota: number | null }) {
   )
 }
 
-function FrequenciaCard({ boletim }: { boletim: Boletim }) {
+function FrequenciaCard({ boletim, aulas }: { boletim: Boletim; aulas?: AulaFrequencia[] }) {
   const { faltas, totalAulas, percentualFaltas } = boletim
-  const dentroLimite = percentualFaltas < LIMITE_FALTAS
+  // RN-33/34: exatamente 25% ainda aprova (backend usa <=); a UI acompanha o mesmo limite.
+  const dentroLimite = percentualFaltas <= LIMITE_FALTAS
   const preenchido = Math.min(Math.max(percentualFaltas, 0), 100)
+  const [aberto, setAberto] = useState(false)
+  const temAulas = aulas != null && aulas.length > 0
 
   return (
     <div className="rounded-xl border border-line bg-surface-2 p-4 sm:p-5">
@@ -96,11 +126,32 @@ function FrequenciaCard({ boletim }: { boletim: Boletim }) {
           ? 'Você está bem dentro do limite de faltas. Continue assim!'
           : 'Você passou do limite de faltas. Fale com a escola o quanto antes.'}
       </div>
+
+      {temAulas && (
+        <div className="mt-3 border-t border-line pt-3">
+          <button
+            type="button"
+            onClick={() => setAberto((v) => !v)}
+            aria-expanded={aberto}
+            className="flex w-full items-center justify-between gap-2 text-[13px] font-semibold text-brand"
+          >
+            <span>{aberto ? 'Ocultar aulas' : `Ver aulas (${aulas!.length})`}</span>
+            <CaretDown size={16} weight="bold" className={aberto ? 'rotate-180 transition' : 'transition'} />
+          </button>
+          {aberto && (
+            <ul className="mt-1 divide-y divide-line">
+              {aulas!.map((a) => (
+                <AulaLinha key={a.aulaId} aula={a} />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-function BoletimCard({ boletim }: { boletim: Boletim }) {
+function BoletimCard({ boletim, aulas }: { boletim: Boletim; aulas?: AulaFrequencia[] }) {
   const situacao = situacaoAprovacao[boletim.situacao]
   const semestre = formatSemestre(boletim.semestreReferencia)
 
@@ -151,7 +202,7 @@ function BoletimCard({ boletim }: { boletim: Boletim }) {
         </div>
 
         {/* Frequência */}
-        <FrequenciaCard boletim={boletim} />
+        <FrequenciaCard boletim={boletim} aulas={aulas} />
       </div>
     </article>
   )
@@ -160,7 +211,15 @@ function BoletimCard({ boletim }: { boletim: Boletim }) {
 export default function AlunoBoletimPage() {
   const [semestreId, setSemestreId] = useState<string | undefined>(undefined)
   const { data: boletins, isLoading, isError, refetch } = useMeuBoletim(semestreId)
+  const { data: frequencias } = useMinhaFrequencia(semestreId)
   const { data: semestres, isLoading: semestresLoading } = useSemestres()
+
+  // Frequência aula-a-aula indexada por matrícula, para o card de cada turma expandir.
+  const aulasPorMatricula = useMemo(() => {
+    const m = new Map<string, AulaFrequencia[]>()
+    frequencias?.forEach((f) => m.set(f.matriculaId, f.aulas))
+    return m
+  }, [frequencias])
 
   const total = boletins?.length ?? 0
 
@@ -217,7 +276,11 @@ export default function AlunoBoletimPage() {
       ) : (
         <div className="flex flex-col gap-5">
           {boletins!.map((boletim) => (
-            <BoletimCard key={`${boletim.matriculaId}-${boletim.semestreId}`} boletim={boletim} />
+            <BoletimCard
+              key={`${boletim.matriculaId}-${boletim.semestreId}`}
+              boletim={boletim}
+              aulas={aulasPorMatricula.get(boletim.matriculaId)}
+            />
           ))}
         </div>
       )}

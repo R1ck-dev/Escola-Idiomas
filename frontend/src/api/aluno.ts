@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Boletim, Mensalidade, Semestre, TurmaDoAluno } from '@/types/api'
+import type { Boletim, FrequenciaTurma, Mensalidade, Semestre, TurmaDoAluno } from '@/types/api'
 
 export function useMinhasTurmasAluno() {
   return useQuery({
@@ -14,6 +14,15 @@ export function useMeuBoletim(semestreId?: string) {
     queryKey: ['aluno', 'boletim', semestreId ?? 'vigente'],
     queryFn: async () =>
       (await api.get<Boletim[]>('/api/alunos/me/boletim', { params: semestreId ? { semestreId } : {} })).data,
+  })
+}
+
+export function useMinhaFrequencia(semestreId?: string) {
+  return useQuery({
+    queryKey: ['aluno', 'frequencia', semestreId ?? 'vigente'],
+    queryFn: async () =>
+      (await api.get<FrequenciaTurma[]>('/api/alunos/me/frequencia', { params: semestreId ? { semestreId } : {} }))
+        .data,
   })
 }
 

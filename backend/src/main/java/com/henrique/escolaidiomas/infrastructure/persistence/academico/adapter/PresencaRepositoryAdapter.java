@@ -39,4 +39,10 @@ public class PresencaRepositoryAdapter implements PresencaRepository {
     public long contarFaltasPorMatriculaESemestre(UUID matriculaId, UUID semestreId) {
         return jpaRepository.contarFaltasPorMatriculaESemestre(matriculaId, semestreId);
     }
+
+    @Override
+    public List<Presenca> listarPorMatriculaESemestre(UUID matriculaId, UUID semestreId) {
+        return jpaRepository.listarPorMatriculaESemestre(matriculaId, semestreId).stream()
+                .map(mapper::toDomain).toList();
+    }
 }

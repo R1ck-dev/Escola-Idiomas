@@ -13,4 +13,7 @@ public interface PresencaRepository {
 
     /** Faltas da matricula no semestre (numerador do % de faltas — RN-33). */
     long contarFaltasPorMatriculaESemestre(UUID matriculaId, UUID semestreId);
+
+    /** Presencas registradas da matricula nas aulas de um semestre (detalhamento por data — US-21). */
+    List<Presenca> listarPorMatriculaESemestre(UUID matriculaId, UUID semestreId);
 }
