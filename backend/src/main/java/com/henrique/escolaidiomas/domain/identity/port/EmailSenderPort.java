@@ -18,6 +18,12 @@ public interface EmailSenderPort {
     /** RN-19: aviso de rejeicao de matricula ao solicitante. */
     void enviarEmailRejeicao(String destinatario, String nome, String motivo);
 
+    /** RN-20: aviso ao candidato de que entrou na lista de espera da turma (sem vaga no momento). */
+    void enviarEmailListaEspera(String destinatario, String nome, String turmaNome);
+
+    /** RN-20: alerta a gestao de que abriu vaga numa turma com candidatos na lista de espera. */
+    void enviarAlertaVagaAberta(String destinatario, String turmaNome, int naListaEspera, long vagas);
+
     /** RN-41: aviso de cobranca ao responsavel/aluno quando a mensalidade e' gerada. */
     void enviarAvisoCobranca(String destinatario, String nome, String competencia,
             BigDecimal valor, LocalDate vencimento);

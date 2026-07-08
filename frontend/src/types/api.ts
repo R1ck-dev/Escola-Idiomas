@@ -3,7 +3,13 @@
 
 export type Role = 'GESTAO' | 'PROFESSOR' | 'ALUNO'
 export type StatusUsuario = 'PENDENTE_VERIFICACAO' | 'ATIVO' | 'INATIVO'
-export type StatusMatricula = 'AGUARDANDO_APROVACAO' | 'ATIVA' | 'TRANCADA' | 'ENCERRADA' | 'REJEITADA'
+export type StatusMatricula =
+  | 'AGUARDANDO_APROVACAO'
+  | 'LISTA_ESPERA'
+  | 'ATIVA'
+  | 'TRANCADA'
+  | 'ENCERRADA'
+  | 'REJEITADA'
 export type StatusMensalidade = 'ABERTA' | 'PAGA' | 'ATRASADA' | 'CANCELADA'
 export type CategoriaDespesa = 'LUZ' | 'ALUGUEL' | 'REPASSE_PROFESSOR' | 'OUTROS'
 export type TipoAvaliacao = 'MIDTERM' | 'FINAL'
@@ -104,6 +110,17 @@ export interface AlunoNaTurma {
   matriculaId: string
   alunoId: string
   alunoNome: string
+}
+
+/** Cobrança PIX de uma mensalidade (BR Code copia-e-cola + dados do recebedor). */
+export interface PixCobranca {
+  mensalidadeId: string
+  competencia: string // "yyyy-MM"
+  vencimento: string // "yyyy-MM-dd"
+  valor: number
+  recebedor: string
+  chave: string
+  copiaECola: string
 }
 
 export interface PresencaLinha {

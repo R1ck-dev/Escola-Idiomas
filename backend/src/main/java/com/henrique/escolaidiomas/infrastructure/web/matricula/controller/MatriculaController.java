@@ -23,6 +23,7 @@ import com.henrique.escolaidiomas.application.matricula.usecase.AprovarMatricula
 import com.henrique.escolaidiomas.application.matricula.usecase.BuscarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.EncerrarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.ListarMatriculasUseCase;
+import com.henrique.escolaidiomas.application.matricula.usecase.MoverParaListaEsperaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.RejeitarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.SolicitarMatriculaUseCase;
 import com.henrique.escolaidiomas.application.matricula.usecase.TrancarMatriculaUseCase;
@@ -43,6 +44,7 @@ public class MatriculaController {
     private final RejeitarMatriculaUseCase rejeitarMatriculaUseCase;
     private final TrancarMatriculaUseCase trancarMatriculaUseCase;
     private final EncerrarMatriculaUseCase encerrarMatriculaUseCase;
+    private final MoverParaListaEsperaUseCase moverParaListaEsperaUseCase;
     private final ListarMatriculasUseCase listarMatriculasUseCase;
     private final BuscarMatriculaUseCase buscarMatriculaUseCase;
 
@@ -90,6 +92,12 @@ public class MatriculaController {
     @PostMapping("/{id}/rejeitar")
     public ResponseEntity<MatriculaDTO> rejeitar(@PathVariable UUID id, @RequestBody @Valid RejeitarMatriculaRequest request) {
         return ResponseEntity.ok(rejeitarMatriculaUseCase.execute(id, request.motivo()));
+    }
+
+    /** RN-20: coloca a solicitacao na lista de espera (turma sem vaga). */
+    @PostMapping("/{id}/lista-espera")
+    public ResponseEntity<MatriculaDTO> listaEspera(@PathVariable UUID id) {
+        return ResponseEntity.ok(moverParaListaEsperaUseCase.execute(id));
     }
 
     @PostMapping("/{id}/trancar")

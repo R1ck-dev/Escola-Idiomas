@@ -5,6 +5,7 @@ import {
   CaretRight,
   Check,
   ClipboardText,
+  Clock,
   Confetti,
   Info,
   Lock,
@@ -38,6 +39,7 @@ import {
   useAprovarMatricula,
   useEncerrarMatricula,
   useMatriculas,
+  useMoverParaListaEspera,
   useRejeitarMatricula,
   useTrancarMatricula,
   useTurmasGestao,
@@ -49,11 +51,12 @@ import { cn } from '@/lib/utils'
 import type { MatriculaDetalhada, StatusMatricula, TurmaGestao } from '@/types/api'
 
 type Filtro = 'TODAS' | StatusMatricula
-type AcaoTipo = 'aprovar' | 'rejeitar' | 'trancar' | 'encerrar'
+type AcaoTipo = 'aprovar' | 'rejeitar' | 'trancar' | 'encerrar' | 'listaEspera'
 
 const TABS: { value: Filtro; label: string }[] = [
   { value: 'TODAS', label: 'Todas' },
   { value: 'AGUARDANDO_APROVACAO', label: 'Aguardando' },
+  { value: 'LISTA_ESPERA', label: 'Lista de espera' },
   { value: 'ATIVA', label: 'Ativa' },
   { value: 'TRANCADA', label: 'Trancada' },
   { value: 'ENCERRADA', label: 'Encerrada' },
@@ -105,6 +108,12 @@ function textoAcao(tipo: AcaoTipo, nome: string): {
       return { titulo: `Trancar matrícula de ${nome}?`, confirmar: 'Trancar matrícula', variant: 'primary' }
     case 'encerrar':
       return { titulo: `Encerrar matrícula de ${nome}?`, confirmar: 'Encerrar matrícula', variant: 'destructive' }
+    case 'listaEspera':
+      return {
+        titulo: `Colocar ${nome} na lista de espera?`,
+        confirmar: 'Mover para lista de espera',
+        variant: 'primary',
+      }
   }
 }
 
@@ -166,6 +175,20 @@ function AcoesLinha({
         <Button variant="ghost" size="row" className="text-danger hover:text-danger" onClick={() => onAcao('encerrar', m)}>
           <Prohibit size={16} weight="bold" />
           Encerrar
+        </Button>
+      </div>
+    )
+  }
+  if (m.status === 'LISTA_ESPERA') {
+    return (
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="row" className="text-danger hover:text-danger" onClick={() => onAcao('rejeitar', m)}>
+          <XCircle size={16} weight="bold" />
+          Rejeitar
+        </Button>
+        <Button variant="primary" size="row" onClick={() => onAcao('aprovar', m)}>
+          <Check size={16} weight="bold" />
+          Alocar
         </Button>
       </div>
     )
@@ -277,7 +300,7 @@ function CardSolicitacao({
           )}
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <Button
             variant="ghost"
             size="row"
@@ -287,11 +310,15 @@ function CardSolicitacao({
             <XCircle size={16} weight="bold" />
             Rejeitar
           </Button>
+          <Button variant="secondary" size="row" onClick={() => onAcao('listaEspera', m)}>
+            <Clock size={16} weight="bold" />
+            Lista de espera
+          </Button>
           <Button
             variant="primary"
             size="row"
             disabled={cheia}
-            title={cheia ? 'Turma sem vagas — libere uma vaga ou realoque para aprovar.' : undefined}
+            title={cheia ? 'Turma sem vagas — coloque na lista de espera ou libere uma vaga.' : undefined}
             onClick={() => onAcao('aprovar', m)}
           >
             <Check size={16} weight="bold" />
@@ -304,8 +331,8 @@ function CardSolicitacao({
         <div className="flex items-start gap-2 rounded-xl bg-warning-bg px-3.5 py-2.5 text-[13px] leading-relaxed text-[#C8461F]">
           <WarningCircle size={17} weight="fill" className="mt-px shrink-0" />
           <span>
-            Turma sem vagas ({turma.ocupacaoAtual}/{turma.lotacaoMaxima}) — libere uma vaga ou
-            realoque o aluno antes de aprovar.
+            Turma sem vagas ({turma.ocupacaoAtual}/{turma.lotacaoMaxima}) — coloque o candidato na
+            lista de espera ou libere uma vaga antes de aprovar.
           </span>
         </div>
       )}
@@ -347,7 +374,13 @@ export default function GestaoMatriculasPage() {
   const rejeitar = useRejeitarMatricula()
   const trancar = useTrancarMatricula()
   const encerrar = useEncerrarMatricula()
-  const pending = aprovar.isPending || rejeitar.isPending || trancar.isPending || encerrar.isPending
+  const moverListaEspera = useMoverParaListaEspera()
+  const pending =
+    aprovar.isPending ||
+    rejeitar.isPending ||
+    trancar.isPending ||
+    encerrar.isPending ||
+    moverListaEspera.isPending
 
   const lista = data?.content ?? []
   const total = data?.totalElements ?? 0
@@ -384,7 +417,14 @@ export default function GestaoMatriculasPage() {
     try {
       if (tipo === 'aprovar') {
         await aprovar.mutateAsync(m.id)
-        toast.success('Matrícula aprovada. 1ª mensalidade gerada e e-mail de acesso enviado.')
+        const msg =
+          m.status === 'LISTA_ESPERA'
+            ? 'Candidato alocado. 1ª mensalidade gerada e e-mail de acesso enviado.'
+            : 'Matrícula aprovada. 1ª mensalidade gerada e e-mail de acesso enviado.'
+        toast.success(msg)
+      } else if (tipo === 'listaEspera') {
+        await moverListaEspera.mutateAsync(m.id)
+        toast.success('Candidato na lista de espera. E-mail enviado ao solicitante.')
       } else if (tipo === 'rejeitar') {
         const texto = motivo.trim()
         if (!texto) {
@@ -579,6 +619,13 @@ export default function GestaoMatriculasPage() {
                   </div>
                   <AvisoBox tone="info">Um e-mail será enviado ao solicitante com este motivo.</AvisoBox>
                 </div>
+              )}
+
+              {acao.tipo === 'listaEspera' && (
+                <AvisoBox tone="info">
+                  O candidato é avisado por e-mail de que entrou na lista de espera. Quando abrir vaga
+                  na turma, você recebe um alerta para contatá-lo e alocar.
+                </AvisoBox>
               )}
 
               {(acao.tipo === 'trancar' || acao.tipo === 'encerrar') && (

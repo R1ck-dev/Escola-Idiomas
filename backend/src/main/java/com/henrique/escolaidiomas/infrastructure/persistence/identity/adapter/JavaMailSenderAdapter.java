@@ -81,6 +81,37 @@ public class JavaMailSenderAdapter implements EmailSenderPort {
 
     @Async
     @Override
+    public void enviarEmailListaEspera(String destinatario, String nome, String turmaNome) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(remetente);
+        message.setTo(destinatario);
+        message.setSubject("Voce esta na lista de espera - Escola de Idiomas");
+        message.setText("Ola, " + nome + "!\n\n" +
+                "No momento a turma \"" + turmaNome + "\" esta sem vagas, entao voce entrou na "
+                + "lista de espera.\n" +
+                "Assim que uma vaga abrir, a escola entra em contato para efetivar a matricula.\n\n" +
+                "Qualquer duvida, fale com a gente.");
+
+        mailSender.send(message);
+    }
+
+    @Async
+    @Override
+    public void enviarAlertaVagaAberta(String destinatario, String turmaNome, int naListaEspera, long vagas) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(remetente);
+        message.setTo(destinatario);
+        message.setSubject("Vaga aberta em turma com lista de espera - Escola de Idiomas");
+        message.setText("Abriu vaga na turma \"" + turmaNome + "\".\n\n" +
+                "Vagas disponiveis: " + vagas + "\n" +
+                "Candidatos na lista de espera: " + naListaEspera + "\n\n" +
+                "Entre em contato com o proximo candidato e faca a alocacao pelo painel de matriculas.");
+
+        mailSender.send(message);
+    }
+
+    @Async
+    @Override
     public void enviarAvisoCobranca(String destinatario, String nome, String competencia,
             BigDecimal valor, LocalDate vencimento) {
         SimpleMailMessage message = new SimpleMailMessage();

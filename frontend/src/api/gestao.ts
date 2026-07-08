@@ -105,6 +105,10 @@ export function useRejeitarMatricula() {
   )
 }
 
+export function useMoverParaListaEspera() {
+  return useMatriculaAcao((id: string) => api.post(`/api/matriculas/${id}/lista-espera`))
+}
+
 export function useTrancarMatricula() {
   return useMatriculaAcao((id: string) => api.post(`/api/matriculas/${id}/trancar`))
 }

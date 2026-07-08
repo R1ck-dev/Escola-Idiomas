@@ -40,17 +40,26 @@ public class Matricula {
     }
 
     public void aprovar() {
-        exigirStatus(StatusMatricula.AGUARDANDO_APROVACAO, "aprovar");
+        // Aprova tanto uma solicitacao nova quanto um candidato da lista de espera (RN-20).
+        exigirStatusEntre("aprovar", StatusMatricula.AGUARDANDO_APROVACAO, StatusMatricula.LISTA_ESPERA);
         this.status = StatusMatricula.ATIVA;
+        this.motivoRejeicao = null;
     }
 
     public void rejeitar(String motivo) {
-        exigirStatus(StatusMatricula.AGUARDANDO_APROVACAO, "rejeitar");
+        // Rejeita uma solicitacao ou remove um candidato da lista de espera (RN-20).
+        exigirStatusEntre("rejeitar", StatusMatricula.AGUARDANDO_APROVACAO, StatusMatricula.LISTA_ESPERA);
         if (motivo == null || motivo.isBlank()) {
             throw new NegocioException("Informe o motivo da rejeicao.");
         }
         this.status = StatusMatricula.REJEITADA;
         this.motivoRejeicao = motivo;
+    }
+
+    /** RN-20: coloca a solicitacao na lista de espera (turma sem vaga no momento). */
+    public void moverParaListaEspera() {
+        exigirStatus(StatusMatricula.AGUARDANDO_APROVACAO, "mover para a lista de espera");
+        this.status = StatusMatricula.LISTA_ESPERA;
     }
 
     public void trancar() {
@@ -70,6 +79,16 @@ public class Matricula {
             throw new NegocioException(
                     "Nao e' possivel " + acao + " uma matricula com status " + this.status + ".");
         }
+    }
+
+    private void exigirStatusEntre(String acao, StatusMatricula... esperados) {
+        for (StatusMatricula e : esperados) {
+            if (this.status == e) {
+                return;
+            }
+        }
+        throw new NegocioException(
+                "Nao e' possivel " + acao + " uma matricula com status " + this.status + ".");
     }
 
     public UUID getId() {

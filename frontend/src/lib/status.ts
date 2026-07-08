@@ -16,6 +16,7 @@ interface StatusInfo {
 
 export const statusMatricula: Record<StatusMatricula, StatusInfo> = {
   AGUARDANDO_APROVACAO: { label: 'Aguardando aprovação', tone: 'warning' },
+  LISTA_ESPERA: { label: 'Lista de espera', tone: 'info' },
   ATIVA: { label: 'Ativa', tone: 'success' },
   TRANCADA: { label: 'Trancada', tone: 'neutralAlt' },
   ENCERRADA: { label: 'Encerrada', tone: 'neutral' },
