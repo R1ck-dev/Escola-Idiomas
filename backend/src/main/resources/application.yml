@@ -42,6 +42,11 @@ app:
     from: ${MAIL_FROM:no-reply@escolaidiomas.app}
   job:
     trigger-secret: ${JOB_TRIGGER_SECRET:}   # protege os endpoints /jobs/** (cron externo)
+  pix:
+    # Recebedor PIX da escola (RN-26). BR Code local, sem PSP: valor embutido, baixa manual/simulada.
+    chave: ${PIX_CHAVE:pix@escolaidiomas.app}
+    recebedor: ${PIX_RECEBEDOR:Escola de Idiomas}
+    cidade: ${PIX_CIDADE:Florianopolis}
   seed:
     gestao:
       nome: ${SEED_GESTAO_NOME:Gestor Padrao}

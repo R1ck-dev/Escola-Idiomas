@@ -1,16 +1,30 @@
+import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import {
   CalendarBlank,
   CheckCircle,
   Clock,
   Confetti,
+  Copy,
+  QrCode,
   Wallet,
   XCircle,
 } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
+import { toast } from '@/components/ui/toaster'
 import { competenciaAtual, formatBRL, formatCompetencia, formatDate } from '@/lib/format'
 import { statusMensalidade } from '@/lib/status'
-import { useMinhasMensalidades } from '@/api/aluno'
+import { useMinhaPix, useMinhasMensalidades } from '@/api/aluno'
 import type { Mensalidade, StatusMensalidade } from '@/types/api'
 
 /** Valor a exibir: atrasada usa o valor com multa/juros; senão o valor da parcela. */
@@ -32,20 +46,19 @@ const VISUAL: Record<StatusMensalidade, { icon: typeof Wallet; box: string; fg: 
   CANCELADA: { icon: XCircle, box: 'bg-surface-2', fg: 'text-ink-subtle' },
 }
 
-/** Aviso tranquilizador — no MVP não há pagamento on-line. */
+/** Aviso de meios de pagamento. */
 function AvisoPagamento() {
   return (
     <div className="flex items-start gap-3 rounded-xl bg-info-bg p-4">
       <Wallet size={20} weight="fill" className="mt-0.5 shrink-0 text-info" />
       <p className="text-[13px] leading-relaxed text-info">
-        O pagamento é feito na escola e registrado pela secretaria — ainda não há pagamento on-line.
-        Qualquer dúvida, fale com a gente.
+        Você pode pagar por PIX aqui pelo app ou diretamente na secretaria. Qualquer dúvida, fale com a gente.
       </p>
     </div>
   )
 }
 
-function DestaqueMensalidade({ m }: { m: Mensalidade }) {
+function DestaqueMensalidade({ m, onPagar }: { m: Mensalidade; onPagar: () => void }) {
   const s = statusMensalidade[m.situacao]
   const atrasada = m.situacao === 'ATRASADA'
   const badgeLabel = atrasada && m.diasAtraso > 0 ? `${s.label} · ${m.diasAtraso} dias` : s.label
@@ -84,9 +97,86 @@ function DestaqueMensalidade({ m }: { m: Mensalidade }) {
       )}
 
       <div className="mt-5">
-        <AvisoPagamento />
+        {m.situacao === 'ABERTA' || m.situacao === 'ATRASADA' ? (
+          <div className="flex flex-col gap-2">
+            <Button variant="primary" className="w-full" onClick={onPagar}>
+              <QrCode size={20} weight="fill" />
+              Pagar com PIX
+            </Button>
+            <p className="text-center text-[13px] text-ink-muted">
+              Pague na hora por PIX ou diretamente na secretaria.
+            </p>
+          </div>
+        ) : (
+          <AvisoPagamento />
+        )}
       </div>
     </section>
+  )
+}
+
+/** Modal com o QR Code e o copia-e-cola do PIX da mensalidade selecionada. */
+function PixDialog({ mensalidade, onClose }: { mensalidade: Mensalidade | null; onClose: () => void }) {
+  const { data: pix, isLoading, isError, refetch } = useMinhaPix(mensalidade?.id ?? null)
+
+  async function copiar() {
+    if (!pix) return
+    try {
+      await navigator.clipboard.writeText(pix.copiaECola)
+      toast.success('Código PIX copiado.')
+    } catch {
+      toast.error('Não foi possível copiar. Selecione o código e copie manualmente.')
+    }
+  }
+
+  return (
+    <Dialog open={mensalidade != null} onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Pagar com PIX</DialogTitle>
+          <DialogDescription>
+            {mensalidade && `Mensalidade de ${formatCompetencia(mensalidade.competencia)}`}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          {isLoading ? (
+            <LoadingRows rows={3} />
+          ) : isError || !pix ? (
+            <ErrorState
+              title="Não foi possível gerar o PIX"
+              description="Tente novamente em instantes."
+              onRetry={() => refetch()}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Valor a pagar</p>
+                <p className="text-4xl font-extrabold tracking-tight text-brand tabular">{formatBRL(pix.valor)}</p>
+              </div>
+
+              <div className="rounded-2xl border border-line bg-white p-4">
+                <QRCodeSVG value={pix.copiaECola} size={196} level="M" marginSize={0} />
+              </div>
+
+              <div className="w-full">
+                <p className="mb-1.5 text-[13px] font-semibold text-ink">PIX copia e cola</p>
+                <p className="max-h-24 overflow-y-auto break-all rounded-xl border border-line bg-surface-2 p-3 text-[12px] text-ink-muted">
+                  {pix.copiaECola}
+                </p>
+                <Button variant="secondary" size="sm" className="mt-2 w-full" onClick={copiar}>
+                  <Copy size={18} />
+                  Copiar código
+                </Button>
+              </div>
+
+              <p className="text-center text-[12px] text-ink-subtle">
+                Recebedor: {pix.recebedor} · Chave: {pix.chave}
+              </p>
+            </div>
+          )}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -150,6 +240,7 @@ function HistoricoCard({ m }: { m: Mensalidade }) {
 
 export default function AlunoMensalidadesPage() {
   const { data, isLoading, isError, refetch } = useMinhasMensalidades()
+  const [pixMensalidade, setPixMensalidade] = useState<Mensalidade | null>(null)
 
   const lista = data ?? []
   const emAberto = lista.filter((m) => m.situacao === 'ABERTA' || m.situacao === 'ATRASADA')
@@ -196,7 +287,11 @@ export default function AlunoMensalidadesPage() {
         />
       ) : (
         <div className="flex flex-col gap-6">
-          {destaque ? <DestaqueMensalidade m={destaque} /> : <EmDia />}
+          {destaque ? (
+            <DestaqueMensalidade m={destaque} onPagar={() => setPixMensalidade(destaque)} />
+          ) : (
+            <EmDia />
+          )}
 
           {historico.length > 0 && (
             <section>
@@ -210,6 +305,8 @@ export default function AlunoMensalidadesPage() {
           )}
         </div>
       )}
+
+      <PixDialog mensalidade={pixMensalidade} onClose={() => setPixMensalidade(null)} />
     </div>
   )
 }

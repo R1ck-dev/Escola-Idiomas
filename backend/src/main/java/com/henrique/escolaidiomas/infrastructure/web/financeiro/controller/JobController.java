@@ -2,6 +2,7 @@ package com.henrique.escolaidiomas.infrastructure.web.financeiro.controller;
 
 import java.time.YearMonth;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
+import com.henrique.escolaidiomas.application.financeiro.usecase.ConfirmarPagamentoPixUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.GerarMensalidadesMensaisUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.VerificarInadimplenciaUseCase;
 
@@ -30,6 +33,7 @@ public class JobController {
 
     private final GerarMensalidadesMensaisUseCase gerarMensalidadesMensaisUseCase;
     private final VerificarInadimplenciaUseCase verificarInadimplenciaUseCase;
+    private final ConfirmarPagamentoPixUseCase confirmarPagamentoPixUseCase;
 
     @Value("${app.job.trigger-secret:}")
     private String jobSecret;
@@ -67,6 +71,23 @@ public class JobController {
                 "avisosAtrasoEnviados", r.avisosAtrasoEnviados(),
                 "itensAtingiram30Dias", r.itensAtingiram30Dias(),
                 "gestoresNotificados", r.gestoresNotificados()));
+    }
+
+    /**
+     * RN-26: confirmacao (simulada) de pagamento PIX — mimetiza o webhook de um PSP.
+     * Protegido pelo mesmo segredo dos jobs (o PSP real assinaria a chamada).
+     */
+    @PostMapping("/pix/confirmar")
+    public ResponseEntity<?> confirmarPix(
+            @RequestHeader(value = "X-Job-Secret", required = false) String secret,
+            @RequestParam UUID mensalidadeId) {
+
+        if (segredoInvalido(secret)) {
+            return naoAutorizado();
+        }
+
+        MensalidadeDTO paga = confirmarPagamentoPixUseCase.execute(mensalidadeId);
+        return ResponseEntity.ok(paga);
     }
 
     private boolean segredoInvalido(String secret) {

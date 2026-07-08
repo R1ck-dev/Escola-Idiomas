@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadePainelDTO;
+import com.henrique.escolaidiomas.application.financeiro.dto.PixCobrancaDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarPainelFinanceiroUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.DarBaixaMensalidadeUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.EstornarBaixaMensalidadeUseCase;
+import com.henrique.escolaidiomas.application.financeiro.usecase.GerarCobrancaPixUseCase;
 import com.henrique.escolaidiomas.application.shared.dto.PaginaDTO;
 import com.henrique.escolaidiomas.domain.financeiro.enums.StatusMensalidade;
 
@@ -32,6 +34,7 @@ public class MensalidadeController {
     private final ConsultarPainelFinanceiroUseCase consultarPainelFinanceiroUseCase;
     private final DarBaixaMensalidadeUseCase darBaixaMensalidadeUseCase;
     private final EstornarBaixaMensalidadeUseCase estornarBaixaMensalidadeUseCase;
+    private final GerarCobrancaPixUseCase gerarCobrancaPixUseCase;
 
     /**
      * RN-12: painel paginado do mes com nomes de aluno/turma (ex.: ?competencia=2026-08),
@@ -59,5 +62,11 @@ public class MensalidadeController {
     @PostMapping("/{id}/estornar")
     public ResponseEntity<MensalidadeDTO> estornar(@PathVariable UUID id) {
         return ResponseEntity.ok(estornarBaixaMensalidadeUseCase.execute(id));
+    }
+
+    /** RN-26: cobranca PIX (copia-e-cola) de uma mensalidade, para a gestao compartilhar. */
+    @GetMapping("/{id}/pix")
+    public ResponseEntity<PixCobrancaDTO> pix(@PathVariable UUID id) {
+        return ResponseEntity.ok(gerarCobrancaPixUseCase.execute(id));
     }
 }

@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,7 +16,9 @@ import com.henrique.escolaidiomas.application.academico.usecase.ConsultarBoletim
 import com.henrique.escolaidiomas.application.academico.usecase.ConsultarFrequenciaDoAlunoUseCase;
 import com.henrique.escolaidiomas.application.academico.usecase.ListarTurmasDoAlunoUseCase;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
+import com.henrique.escolaidiomas.application.financeiro.dto.PixCobrancaDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarMensalidadesDoAlunoUseCase;
+import com.henrique.escolaidiomas.application.financeiro.usecase.GerarCobrancaPixUseCase;
 import com.henrique.escolaidiomas.application.turma.dto.TurmaDoAlunoDTO;
 import com.henrique.escolaidiomas.infrastructure.config.security.CurrentUserId;
 
@@ -31,6 +34,7 @@ public class AlunoAreaController {
     private final ConsultarBoletimDoAlunoUseCase consultarBoletimDoAlunoUseCase;
     private final ConsultarFrequenciaDoAlunoUseCase consultarFrequenciaDoAlunoUseCase;
     private final ConsultarMensalidadesDoAlunoUseCase consultarMensalidadesDoAlunoUseCase;
+    private final GerarCobrancaPixUseCase gerarCobrancaPixUseCase;
 
     @GetMapping("/turmas")
     public ResponseEntity<List<TurmaDoAlunoDTO>> minhasTurmas(@CurrentUserId UUID alunoId) {
@@ -54,5 +58,13 @@ public class AlunoAreaController {
     @GetMapping("/mensalidades")
     public ResponseEntity<List<MensalidadeDTO>> minhasMensalidades(@CurrentUserId UUID alunoId) {
         return ResponseEntity.ok(consultarMensalidadesDoAlunoUseCase.execute(alunoId));
+    }
+
+    /** RN-26: cobranca PIX (copia-e-cola) de uma mensalidade do proprio aluno. */
+    @GetMapping("/mensalidades/{id}/pix")
+    public ResponseEntity<PixCobrancaDTO> pixDaMinhaMensalidade(
+            @CurrentUserId UUID alunoId,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(gerarCobrancaPixUseCase.executeDoAluno(id, alunoId));
     }
 }

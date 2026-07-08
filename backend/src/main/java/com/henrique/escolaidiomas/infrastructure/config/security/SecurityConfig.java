@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/matriculas").hasRole("GESTAO")
                         .requestMatchers("/api/matriculas/**").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.GET, "/api/mensalidades").hasRole("GESTAO")
+                        // PIX/detalhe de uma mensalidade pela gestao (o aluno usa /api/alunos/me/**).
+                        .requestMatchers(HttpMethod.GET, "/api/mensalidades/**").hasRole("GESTAO")
                         .requestMatchers(HttpMethod.POST, "/api/mensalidades/**").hasRole("GESTAO")
                         .requestMatchers("/api/despesas/**").hasRole("GESTAO")
                         // Semestre e' dado de referencia: ALUNO le a lista (seletor do boletim). Escrita segue GESTAO.
