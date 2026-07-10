@@ -16,6 +16,7 @@ public record MensalidadePainelDTO(
         UUID matriculaId,
         String alunoNome,
         String turmaNome,
+        String telefone, // destinatario da cobranca (RN-41): responsavel se menor, senao o aluno
         String competencia,
         BigDecimal valorBase,
         int percentual,
@@ -27,12 +28,14 @@ public record MensalidadePainelDTO(
         boolean prorata,
         LocalDate dataPagamento
 ) {
-    public static MensalidadePainelDTO de(Mensalidade m, String alunoNome, String turmaNome, LocalDate hoje) {
+    public static MensalidadePainelDTO de(Mensalidade m, String alunoNome, String turmaNome, String telefone,
+            LocalDate hoje) {
         return new MensalidadePainelDTO(
                 m.getId(),
                 m.getMatriculaId(),
                 alunoNome,
                 turmaNome,
+                telefone,
                 m.getCompetencia(),
                 m.getValorBase(),
                 m.getPercentual(),

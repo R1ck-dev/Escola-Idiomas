@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CaretLeft, CaretRight, DotsThreeOutline, HouseLine, Lightning, PencilSimple, Plus, Receipt, Trash, User, Wallet } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, DotsThreeOutline, HouseLine, Lightning, PencilSimple, Plus, Receipt, Trash, User, Wallet, WhatsappLogo } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import type { BadgeTone } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,9 +37,10 @@ import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { toast } from '@/components/ui/toaster'
-import { mensagemErro } from '@/lib/api'
+import { api, mensagemErro } from '@/lib/api'
 import { competenciaAtual, formatBRL, formatCompetencia, formatDate } from '@/lib/format'
 import { categoriaDespesaLabel, statusMensalidade } from '@/lib/status'
+import { abrirWhatsApp } from '@/lib/whatsapp'
 import {
   useAtualizarDespesa,
   useDashboard,
@@ -51,7 +52,7 @@ import {
   useProfessores,
   useRegistrarDespesa,
 } from '@/api/gestao'
-import type { CategoriaDespesa, Despesa, MensalidadePainel, RegistrarDespesaPayload, StatusMensalidade } from '@/types/api'
+import type { CategoriaDespesa, Despesa, MensalidadePainel, PixCobranca, RegistrarDespesaPayload, StatusMensalidade } from '@/types/api'
 
 /** Data de hoje em "yyyy-MM-dd" (fuso local, sem deslocamento do toISOString). */
 function hojeISO(): string {
@@ -220,10 +221,55 @@ function EstornarBaixaDialog({ m }: { m: MensalidadePainel }) {
   )
 }
 
+/** Primeiro nome do aluno, para a saudação da mensagem (vazio se não houver nome). */
+function primeiroNome(nome: string | null): string {
+  const n = (nome ?? '').trim().split(/\s+/)[0]
+  return n ? ` ${n}` : ''
+}
+
+/**
+ * Envia a cobrança (ou o lembrete de atraso) da mensalidade pelo WhatsApp — RN-41, simulado.
+ * Busca o copia-e-cola do PIX na hora e abre o WhatsApp com a mensagem pronta para o destinatário
+ * (responsável se menor, senão o aluno). Sem telefone, o WhatsApp abre para escolher o contato.
+ */
+function EnviarCobrancaWhatsapp({ m }: { m: MensalidadePainel }) {
+  const [carregando, setCarregando] = useState(false)
+  const atrasada = m.situacao === 'ATRASADA'
+
+  async function enviar() {
+    setCarregando(true)
+    try {
+      const pix = (await api.get<PixCobranca>(`/api/mensalidades/${m.id}/pix`)).data
+      const saud = primeiroNome(m.alunoNome)
+      const comp = formatCompetencia(m.competencia)
+      const venc = formatDate(m.vencimento)
+      const mensagem = atrasada
+        ? `Olá${saud}! Notamos que a mensalidade de ${comp} (venceu em ${venc}) está em aberto. ` +
+          `O valor atualizado com multa e juros é ${formatBRL(m.valorAtualizado)}. Para regularizar por PIX, ` +
+          `use o copia e cola abaixo:\n\n${pix.copiaECola}\n\nSe o pagamento já foi feito, desconsidere. Estamos à disposição!`
+        : `Olá${saud}! Sua mensalidade de ${comp} vence em ${venc}, no valor de ${formatBRL(m.valorEfetivo)}. ` +
+          `Você pode pagar por PIX com o copia e cola abaixo:\n\n${pix.copiaECola}\n\nQualquer dúvida, estamos à disposição!`
+      abrirWhatsApp(m.telefone, mensagem)
+    } catch (e) {
+      toast.error(mensagemErro(e))
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  return (
+    <Button variant="secondary" size="row" loading={carregando} onClick={enviar}>
+      <WhatsappLogo size={16} weight="fill" className="text-[#25D366]" />
+      {atrasada ? 'Lembrar' : 'Cobrar'}
+    </Button>
+  )
+}
+
 function LinhaAcao({ m }: { m: MensalidadePainel }) {
   if (m.situacao === 'ABERTA' || m.situacao === 'ATRASADA') {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <EnviarCobrancaWhatsapp m={m} />
         <MarcarPagoDialog m={m} />
       </div>
     )

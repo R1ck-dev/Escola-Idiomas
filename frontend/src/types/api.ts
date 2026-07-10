@@ -123,6 +123,18 @@ export interface PixCobranca {
   copiaECola: string
 }
 
+/** Boleto (simulado) de uma mensalidade: linha digitável + código de barras (44 díg.) FEBRABAN. */
+export interface BoletoCobranca {
+  mensalidadeId: string
+  competencia: string // "yyyy-MM"
+  vencimento: string // "yyyy-MM-dd"
+  valor: number
+  beneficiario: string
+  nossoNumero: string
+  linhaDigitavel: string
+  codigoBarras: string
+}
+
 export interface PresencaLinha {
   matriculaId: string
   alunoId: string
@@ -253,6 +265,7 @@ export interface MensalidadePainel {
   matriculaId: string
   alunoNome: string | null
   turmaNome: string | null
+  telefone: string | null // destinatário da cobrança (responsável se menor, senão o aluno)
   competencia: string // "yyyy-MM"
   valorBase: number
   percentual: number

@@ -15,9 +15,11 @@ import com.henrique.escolaidiomas.application.academico.dto.FrequenciaTurmaDTO;
 import com.henrique.escolaidiomas.application.academico.usecase.ConsultarBoletimDoAlunoUseCase;
 import com.henrique.escolaidiomas.application.academico.usecase.ConsultarFrequenciaDoAlunoUseCase;
 import com.henrique.escolaidiomas.application.academico.usecase.ListarTurmasDoAlunoUseCase;
+import com.henrique.escolaidiomas.application.financeiro.dto.BoletoCobrancaDTO;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
 import com.henrique.escolaidiomas.application.financeiro.dto.PixCobrancaDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarMensalidadesDoAlunoUseCase;
+import com.henrique.escolaidiomas.application.financeiro.usecase.GerarBoletoUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.GerarCobrancaPixUseCase;
 import com.henrique.escolaidiomas.application.turma.dto.TurmaDoAlunoDTO;
 import com.henrique.escolaidiomas.infrastructure.config.security.CurrentUserId;
@@ -35,6 +37,7 @@ public class AlunoAreaController {
     private final ConsultarFrequenciaDoAlunoUseCase consultarFrequenciaDoAlunoUseCase;
     private final ConsultarMensalidadesDoAlunoUseCase consultarMensalidadesDoAlunoUseCase;
     private final GerarCobrancaPixUseCase gerarCobrancaPixUseCase;
+    private final GerarBoletoUseCase gerarBoletoUseCase;
 
     @GetMapping("/turmas")
     public ResponseEntity<List<TurmaDoAlunoDTO>> minhasTurmas(@CurrentUserId UUID alunoId) {
@@ -66,5 +69,13 @@ public class AlunoAreaController {
             @CurrentUserId UUID alunoId,
             @PathVariable UUID id) {
         return ResponseEntity.ok(gerarCobrancaPixUseCase.executeDoAluno(id, alunoId));
+    }
+
+    /** RN-25 (simulado): boleto (linha digitavel + codigo de barras) de uma mensalidade do proprio aluno. */
+    @GetMapping("/mensalidades/{id}/boleto")
+    public ResponseEntity<BoletoCobrancaDTO> boletoDaMinhaMensalidade(
+            @CurrentUserId UUID alunoId,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(gerarBoletoUseCase.executeDoAluno(id, alunoId));
     }
 }

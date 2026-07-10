@@ -2,10 +2,21 @@ import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Books, Clock, Info, LinkSimple, MagnifyingGlass, PencilSimple, Plus, User } from '@phosphor-icons/react'
+import { Books, Clock, Info, LinkSimple, MagnifyingGlass, PencilSimple, Plus, User, WhatsappLogo } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import {
   Sheet,
   SheetBody,
@@ -27,6 +38,7 @@ import { toast } from '@/components/ui/toaster'
 import { useAtualizarTurma, useCriarTurma, useProfessores, useTurmasGestao } from '@/api/gestao'
 import { formatBRL, formatHora } from '@/lib/format'
 import { mensagemErro } from '@/lib/api'
+import { abrirWhatsApp } from '@/lib/whatsapp'
 import type { CriarTurmaPayload, TurmaGestao } from '@/types/api'
 
 // ---------- Helpers ----------
@@ -44,7 +56,7 @@ function horarioTexto(t: TurmaGestao): string {
 
 /** Copia o link público de matrícula da turma para a área de transferência. */
 async function copiarLinkMatricula(turmaId: string) {
-  const url = `${window.location.origin}/matricula?turmaId=${turmaId}`
+  const url = linkMatricula(turmaId)
   try {
     await navigator.clipboard.writeText(url)
     toast.success('Link de matrícula copiado para a área de transferência.')
@@ -306,6 +318,76 @@ function TurmaForm({ turma, onDone }: { turma: TurmaGestao | null; onDone: () =>
 
 // ---------- Card de turma ----------
 
+/** Link público de matrícula da turma. */
+function linkMatricula(turmaId: string): string {
+  return `${window.location.origin}/matricula?turmaId=${turmaId}`
+}
+
+/**
+ * Envia o link de matrícula da turma pelo WhatsApp (RN-01, simulado): a gestão digita o telefone
+ * do interessado e o WhatsApp abre com a mensagem pronta. Sem número, o WhatsApp abre para escolher
+ * o contato. Substitui o copia-e-cola manual do link.
+ */
+function EnviarLinkWhatsappDialog({ turma }: { turma: TurmaGestao }) {
+  const [open, setOpen] = useState(false)
+  const [telefone, setTelefone] = useState('')
+
+  const mensagem =
+    `Olá! Para se matricular na turma ${turma.nome} (${turma.idioma}) da nossa escola, ` +
+    `é só preencher seus dados neste link: ${linkMatricula(turma.id)}`
+
+  function enviar() {
+    abrirWhatsApp(telefone, mensagem)
+    setOpen(false)
+    setTelefone('')
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary" size="row" className="flex-1" aria-label="Enviar link por WhatsApp" title="Enviar link por WhatsApp">
+          <WhatsappLogo size={16} weight="fill" className="text-[#25D366]" />
+          WhatsApp
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Enviar link de matrícula</DialogTitle>
+          <DialogDescription>
+            Turma {turma.nome} · {turma.idioma}. O WhatsApp abre com a mensagem pronta — é só enviar.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="flex flex-col gap-4">
+          <Field
+            label="Telefone do interessado"
+            htmlFor={`wa-fone-${turma.id}`}
+            hint="Com DDD. Deixe em branco para escolher o contato no próprio WhatsApp."
+          >
+            <Input
+              id={`wa-fone-${turma.id}`}
+              type="tel"
+              inputMode="tel"
+              placeholder="(48) 99999-8888"
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
+            />
+          </Field>
+          <div className="rounded-xl bg-surface-2 p-3 text-[13px] leading-relaxed text-ink-muted">{mensagem}</div>
+        </DialogBody>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="secondary">Cancelar</Button>
+          </DialogClose>
+          <Button onClick={enviar}>
+            <WhatsappLogo size={18} weight="fill" />
+            Abrir no WhatsApp
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function TurmaCard({ turma, onEditar }: { turma: TurmaGestao; onEditar: () => void }) {
   const cheia = turma.ocupacaoAtual >= turma.lotacaoMaxima
   const pct =
@@ -377,8 +459,8 @@ function TurmaCard({ turma, onEditar }: { turma: TurmaGestao; onEditar: () => vo
         </div>
       </div>
 
-      <div className="mt-4 flex gap-2">
-        {turma.ativa && (
+      {turma.ativa && (
+        <div className="mt-4 flex gap-2">
           <Button
             variant="secondary"
             size="row"
@@ -388,7 +470,10 @@ function TurmaCard({ turma, onEditar }: { turma: TurmaGestao; onEditar: () => vo
             <LinkSimple size={16} />
             Copiar link
           </Button>
-        )}
+          <EnviarLinkWhatsappDialog turma={turma} />
+        </div>
+      )}
+      <div className="mt-2 flex gap-2">
         <Button variant="secondary" size="row" className="flex-1" onClick={onEditar}>
           <PencilSimple size={16} />
           Editar

@@ -13,12 +13,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.henrique.escolaidiomas.application.financeiro.dto.BoletoCobrancaDTO;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadeDTO;
 import com.henrique.escolaidiomas.application.financeiro.dto.MensalidadePainelDTO;
 import com.henrique.escolaidiomas.application.financeiro.dto.PixCobrancaDTO;
 import com.henrique.escolaidiomas.application.financeiro.usecase.ConsultarPainelFinanceiroUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.DarBaixaMensalidadeUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.EstornarBaixaMensalidadeUseCase;
+import com.henrique.escolaidiomas.application.financeiro.usecase.GerarBoletoUseCase;
 import com.henrique.escolaidiomas.application.financeiro.usecase.GerarCobrancaPixUseCase;
 import com.henrique.escolaidiomas.application.shared.dto.PaginaDTO;
 import com.henrique.escolaidiomas.domain.financeiro.enums.StatusMensalidade;
@@ -35,6 +37,7 @@ public class MensalidadeController {
     private final DarBaixaMensalidadeUseCase darBaixaMensalidadeUseCase;
     private final EstornarBaixaMensalidadeUseCase estornarBaixaMensalidadeUseCase;
     private final GerarCobrancaPixUseCase gerarCobrancaPixUseCase;
+    private final GerarBoletoUseCase gerarBoletoUseCase;
 
     /**
      * RN-12: painel paginado do mes com nomes de aluno/turma (ex.: ?competencia=2026-08),
@@ -68,5 +71,11 @@ public class MensalidadeController {
     @GetMapping("/{id}/pix")
     public ResponseEntity<PixCobrancaDTO> pix(@PathVariable UUID id) {
         return ResponseEntity.ok(gerarCobrancaPixUseCase.execute(id));
+    }
+
+    /** RN-25 (simulado): boleto (linha digitavel + codigo de barras) de uma mensalidade. */
+    @GetMapping("/{id}/boleto")
+    public ResponseEntity<BoletoCobrancaDTO> boleto(@PathVariable UUID id) {
+        return ResponseEntity.ok(gerarBoletoUseCase.execute(id));
     }
 }

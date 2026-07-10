@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Boletim, FrequenciaTurma, Mensalidade, PixCobranca, Semestre, TurmaDoAluno } from '@/types/api'
+import type { Boletim, BoletoCobranca, FrequenciaTurma, Mensalidade, PixCobranca, Semestre, TurmaDoAluno } from '@/types/api'
 
 export function useMinhasTurmasAluno() {
   return useQuery({
@@ -40,6 +40,16 @@ export function useMinhaPix(mensalidadeId: string | null) {
     enabled: mensalidadeId != null,
     queryFn: async () =>
       (await api.get<PixCobranca>(`/api/alunos/me/mensalidades/${mensalidadeId}/pix`)).data,
+  })
+}
+
+/** Boleto (simulado) de uma mensalidade do próprio aluno (só busca quando há id selecionado). */
+export function useMeuBoleto(mensalidadeId: string | null) {
+  return useQuery({
+    queryKey: ['aluno', 'boleto', mensalidadeId],
+    enabled: mensalidadeId != null,
+    queryFn: async () =>
+      (await api.get<BoletoCobranca>(`/api/alunos/me/mensalidades/${mensalidadeId}/boleto`)).data,
   })
 }
 

@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import {
+  Barcode as BarcodeIcon,
   CalendarBlank,
   CheckCircle,
   Clock,
   Confetti,
   Copy,
+  Printer,
   QrCode,
   Wallet,
   XCircle,
@@ -25,9 +27,10 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states'
 import { toast } from '@/components/ui/toaster'
 import { api, mensagemErro } from '@/lib/api'
 import { competenciaAtual, formatBRL, formatCompetencia, formatDate } from '@/lib/format'
+import { codigoBarrasSvg, formatarLinhaDigitavel, interleaved2of5 } from '@/lib/barcode'
 import { statusMensalidade } from '@/lib/status'
-import { useMinhaPix, useMinhasMensalidades } from '@/api/aluno'
-import type { Mensalidade, StatusMensalidade } from '@/types/api'
+import { useMeuBoleto, useMinhaPix, useMinhasMensalidades } from '@/api/aluno'
+import type { BoletoCobranca, Mensalidade, StatusMensalidade } from '@/types/api'
 
 /** Valor a exibir: atrasada usa o valor com multa/juros; senão o valor da parcela. */
 function valorPrincipal(m: Mensalidade): number {
@@ -60,7 +63,15 @@ function AvisoPagamento() {
   )
 }
 
-function DestaqueMensalidade({ m, onPagar }: { m: Mensalidade; onPagar: () => void }) {
+function DestaqueMensalidade({
+  m,
+  onPagar,
+  onBoleto,
+}: {
+  m: Mensalidade
+  onPagar: () => void
+  onBoleto: () => void
+}) {
   const s = statusMensalidade[m.situacao]
   const atrasada = m.situacao === 'ATRASADA'
   const badgeLabel = atrasada && m.diasAtraso > 0 ? `${s.label} · ${m.diasAtraso} dias` : s.label
@@ -105,8 +116,12 @@ function DestaqueMensalidade({ m, onPagar }: { m: Mensalidade; onPagar: () => vo
               <QrCode size={20} weight="fill" />
               Pagar com PIX
             </Button>
+            <Button variant="secondary" className="w-full" onClick={onBoleto}>
+              <BarcodeIcon size={20} weight="fill" />
+              Emitir boleto
+            </Button>
             <p className="text-center text-[13px] text-ink-muted">
-              Pague na hora por PIX ou diretamente na secretaria.
+              Pague na hora por PIX, gere um boleto ou pague diretamente na secretaria.
             </p>
           </div>
         ) : (
@@ -222,6 +237,188 @@ function PixDialog({ mensalidade, onClose }: { mensalidade: Mensalidade | null; 
   )
 }
 
+/** Código de barras Interleaved 2 of 5 renderizado como SVG (barras pretas). */
+function Barcode({ codigo }: { codigo: string }) {
+  const { barras, largura } = interleaved2of5(codigo)
+  return (
+    <svg
+      viewBox={`0 0 ${largura} 64`}
+      preserveAspectRatio="none"
+      className="h-16 w-full text-black"
+      role="img"
+      aria-label="Código de barras do boleto"
+    >
+      {barras.map((b, i) => (
+        <rect key={i} x={b.x} y={0} width={b.w} height={64} fill="currentColor" />
+      ))}
+    </svg>
+  )
+}
+
+/** Abre uma janela de impressão com o boleto (barras + linha digitável) formatado. */
+function imprimirBoleto(b: BoletoCobranca) {
+  const svg = codigoBarrasSvg(b.codigoBarras)
+  const venc = formatDate(b.vencimento)
+  const valor = formatBRL(b.valor)
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Boleto ${formatCompetencia(b.competencia)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #101828; margin: 24px; }
+  .boleto { max-width: 720px; margin: 0 auto; border: 1px solid #101828; }
+  .top { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #101828; padding: 10px 14px; }
+  .top .banco { font-size: 22px; font-weight: 800; }
+  .top .linha { margin-left: auto; font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .cell { padding: 8px 14px; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; }
+  .cell:nth-child(2n) { border-right: none; }
+  .cell .rot { font-size: 10px; text-transform: uppercase; color: #667085; letter-spacing: .4px; }
+  .cell .val { font-size: 15px; font-weight: 600; margin-top: 2px; }
+  .barras { padding: 16px 14px 20px; }
+  .obs { font-size: 11px; color: #667085; margin-top: 8px; text-align: center; }
+  @media print { body { margin: 0; } }
+</style></head><body>
+<div class="boleto">
+  <div class="top">
+    <span class="banco">${b.beneficiario}</span>
+    <span class="linha">${formatarLinhaDigitavel(b.linhaDigitavel)}</span>
+  </div>
+  <div class="grid">
+    <div class="cell"><div class="rot">Beneficiário</div><div class="val">${b.beneficiario}</div></div>
+    <div class="cell"><div class="rot">Nosso número</div><div class="val">${b.nossoNumero}</div></div>
+    <div class="cell"><div class="rot">Vencimento</div><div class="val">${venc}</div></div>
+    <div class="cell"><div class="rot">Valor do documento</div><div class="val">${valor}</div></div>
+    <div class="cell" style="grid-column: 1 / -1; border-right: none;">
+      <div class="rot">Competência</div><div class="val">${formatCompetencia(b.competencia)}</div>
+    </div>
+  </div>
+  <div class="barras">${svg}</div>
+  <p class="obs">Boleto simulado — sem registro bancário. Use o PIX ou a secretaria para o pagamento efetivo.</p>
+</div>
+<script>window.onload = function () { window.print() }</script>
+</body></html>`
+
+  const w = window.open('', '_blank', 'width=800,height=900')
+  if (!w) {
+    toast.error('Habilite pop-ups para imprimir o boleto.')
+    return
+  }
+  w.document.write(html)
+  w.document.close()
+}
+
+/** Modal com o boleto (código de barras + linha digitável) da mensalidade selecionada. */
+function BoletoDialog({ mensalidade, onClose }: { mensalidade: Mensalidade | null; onClose: () => void }) {
+  const { data: boleto, isLoading, isError, refetch } = useMeuBoleto(mensalidade?.id ?? null)
+  const qc = useQueryClient()
+  const [simulando, setSimulando] = useState(false)
+
+  // Só em DEV: botão que imita a compensação bancária e marca a mensalidade como paga.
+  const devSimular = import.meta.env.DEV && !!import.meta.env.VITE_JOB_SECRET
+
+  async function copiar() {
+    if (!boleto) return
+    try {
+      await navigator.clipboard.writeText(boleto.linhaDigitavel)
+      toast.success('Linha digitável copiada.')
+    } catch {
+      toast.error('Não foi possível copiar. Selecione o código e copie manualmente.')
+    }
+  }
+
+  async function simularPagamento() {
+    if (!boleto) return
+    setSimulando(true)
+    try {
+      await api.post('/jobs/pix/confirmar', null, {
+        params: { mensalidadeId: boleto.mensalidadeId },
+        headers: { 'X-Job-Secret': import.meta.env.VITE_JOB_SECRET },
+      })
+      toast.success('Pagamento confirmado (simulado).')
+      qc.invalidateQueries({ queryKey: ['aluno', 'mensalidades'] })
+      onClose()
+    } catch (e) {
+      toast.error(mensagemErro(e))
+    } finally {
+      setSimulando(false)
+    }
+  }
+
+  return (
+    <Dialog open={mensalidade != null} onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Boleto bancário</DialogTitle>
+          <DialogDescription>
+            {mensalidade && `Mensalidade de ${formatCompetencia(mensalidade.competencia)}`}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          {isLoading ? (
+            <LoadingRows rows={3} />
+          ) : isError || !boleto ? (
+            <ErrorState
+              title="Não foi possível gerar o boleto"
+              description="Tente novamente em instantes."
+              onRetry={() => refetch()}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Valor do documento</p>
+                <p className="text-4xl font-extrabold tracking-tight text-brand tabular">{formatBRL(boleto.valor)}</p>
+                <p className="mt-1 text-[13px] text-ink-muted">Vencimento {formatDate(boleto.vencimento)}</p>
+              </div>
+
+              <div className="w-full rounded-2xl border border-line bg-white p-4">
+                <Barcode codigo={boleto.codigoBarras} />
+              </div>
+
+              <div className="w-full">
+                <p className="mb-1.5 text-[13px] font-semibold text-ink">Linha digitável</p>
+                <p className="break-all rounded-xl border border-line bg-surface-2 p-3 text-center text-[13px] tabular text-ink-muted">
+                  {formatarLinhaDigitavel(boleto.linhaDigitavel)}
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Button variant="secondary" size="sm" onClick={copiar}>
+                    <Copy size={18} />
+                    Copiar código
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => imprimirBoleto(boleto)}>
+                    <Printer size={18} />
+                    Imprimir
+                  </Button>
+                </div>
+              </div>
+
+              <p className="text-center text-[12px] text-ink-subtle">
+                Beneficiário: {boleto.beneficiario} · Nosso número: {boleto.nossoNumero}
+              </p>
+
+              {devSimular && (
+                <div className="w-full border-t border-dashed border-line pt-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    loading={simulando}
+                    onClick={simularPagamento}
+                  >
+                    Já paguei (simular compensação)
+                  </Button>
+                  <p className="mt-1 text-center text-[11px] text-ink-subtle">
+                    Só em desenvolvimento — imita a compensação do boleto no banco.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function EmDia() {
   return (
     <section className="rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(16,24,40,.04)] sm:p-7">
@@ -283,6 +480,7 @@ function HistoricoCard({ m }: { m: Mensalidade }) {
 export default function AlunoMensalidadesPage() {
   const { data, isLoading, isError, refetch } = useMinhasMensalidades()
   const [pixMensalidade, setPixMensalidade] = useState<Mensalidade | null>(null)
+  const [boletoMensalidade, setBoletoMensalidade] = useState<Mensalidade | null>(null)
 
   const lista = data ?? []
   const emAberto = lista.filter((m) => m.situacao === 'ABERTA' || m.situacao === 'ATRASADA')
@@ -330,7 +528,11 @@ export default function AlunoMensalidadesPage() {
       ) : (
         <div className="flex flex-col gap-6">
           {destaque ? (
-            <DestaqueMensalidade m={destaque} onPagar={() => setPixMensalidade(destaque)} />
+            <DestaqueMensalidade
+              m={destaque}
+              onPagar={() => setPixMensalidade(destaque)}
+              onBoleto={() => setBoletoMensalidade(destaque)}
+            />
           ) : (
             <EmDia />
           )}
@@ -349,6 +551,7 @@ export default function AlunoMensalidadesPage() {
       )}
 
       <PixDialog mensalidade={pixMensalidade} onClose={() => setPixMensalidade(null)} />
+      <BoletoDialog mensalidade={boletoMensalidade} onClose={() => setBoletoMensalidade(null)} />
     </div>
   )
 }

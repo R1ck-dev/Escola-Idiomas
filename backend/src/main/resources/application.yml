@@ -47,6 +47,13 @@ app:
     chave: ${PIX_CHAVE:pix@escolaidiomas.app}
     recebedor: ${PIX_RECEBEDOR:Escola de Idiomas}
     cidade: ${PIX_CIDADE:Florianopolis}
+  boleto:
+    # Beneficiario/conta do boleto (RN-25). Formato FEBRABAN valido, sem API do banco: baixa manual/simulada.
+    banco: ${BOLETO_BANCO:077}   # 077 = Banco Inter
+    beneficiario: ${BOLETO_BENEFICIARIO:Escola de Idiomas}
+    agencia: ${BOLETO_AGENCIA:0001}
+    conta: ${BOLETO_CONTA:1234567}
+    carteira: ${BOLETO_CARTEIRA:1}
   seed:
     gestao:
       nome: ${SEED_GESTAO_NOME:Gestor Padrao}
